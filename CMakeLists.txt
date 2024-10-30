@@ -9,9 +9,11 @@ SET(DOPARSE TRUE CACHE BOOL "if false, bison is not used, and only lexical analy
 
 # https://cmake.org/cmake/help/latest/module/FindFLEX.html
 if(DOPARSE) 
-   find_package(BISON) 
+   find_package(BISON REQUIRED)
 endif()
-find_package(FLEX)
+find_package(FLEX REQUIRED)
+
+find_library(FL_LIBRARY NAMES fl PATHS /opt/homebrew/opt/flex/lib /usr/local/opt/flex/lib /usr/lib)
 
 SET(CES41_SRC "src" CACHE FILEPATH "Directory with student sources")
 
@@ -48,7 +50,7 @@ if(DOPARSE)
         ${FLEX_scanner_OUTPUTS}
     )
     target_include_directories(mycmcomp PUBLIC ${CES41_SRC})
-    target_link_libraries(mycmcomp )
+    target_link_libraries(mycmcomp ${FL_LIBRARY})
 else()
     add_executable(mycmcomp
         ${labSrc}
@@ -56,7 +58,7 @@ else()
         ${FLEX_scanner_OUTPUTS}
     )
     target_include_directories(mycmcomp PUBLIC ${CES41_SRC})   
-    target_link_libraries(mycmcomp ${FLEX_LIBRARIES})
+    target_link_libraries(mycmcomp ${FLEX_LIBRARIES} ${FL_LIBRARY})
 endif()
 
  #${FLEX_LIBRARIES})
@@ -109,7 +111,7 @@ add_executable(tiny
         ${FLEX_tinyscanner_OUTPUTS}
     )
 target_include_directories(tiny PUBLIC TinyGeracaoCodigo )
-target_link_libraries(tiny)
+target_link_libraries(tiny ${FL_LIBRARY})
 else()
 FLEX_TARGET(tinyscanner TinyFlex/tiny.l  ${CMAKE_CURRENT_BINARY_DIR}/tinylexer.c )
 FILE(GLOB tinycode TinyFlex/*.c  )
@@ -119,7 +121,7 @@ add_executable(tiny
         ${FLEX_tinyscanner_OUTPUTS}
     )
 target_include_directories(tiny PUBLIC TinyFlex )
-target_link_libraries(tiny ${FLEX_LIBRARIES})
+target_link_libraries(tiny ${FLEX_LIBRARIES} ${FL_LIBRARY})
 endif()
 
 

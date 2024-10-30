@@ -10,6 +10,7 @@
   https://stackoverflow.com/questions/1480138/undefined-reference-to-yylex 
 */ 
 
+
 %{
 #include "globals.h"
 #include "util.h"
@@ -17,58 +18,102 @@
 /* lexeme of identifier or reserved word */
 char tokenString[MAXTOKENLEN+1];
 %}
+
 digit       [0-9]
 number      {digit}+
 letter      [a-zA-Z]
 identifier  {letter}+
-newline     \n
+newline     \n|\r\n
 whitespace  [ \t]+
+comment     "/*"
+
 %%
-"if"            {return IF;}
-"then"          {return THEN;}
+
 "else"          {return ELSE;}
-"end"           {return END;}
-"repeat"        {return REPEAT;}
-"until"         {return UNTIL;}
-"read"          {return READ;}
-"write"         {return WRITE;}
-":="            {return ASSIGN;}
-"="             {return EQ;}
-"<"             {return LT;}
+"if"            {return IF;}
+"int"           {return INT;}
+"return"        {return RETURN;}
+"void"          {return VOID;}
+"while"         {return WHILE;}
+
+"/*"            { char c;
+                  while(1)
+                  { 
+                    c = input();
+                    if(c == '*'){
+                      c = input();
+                      if(c=='/')
+                        break;
+                    }
+                    if (c == EOF) break;
+                    if (c == '\n') {lineno++;
+                    printLine();
+                    } 
+                  } }
 "+"             {return PLUS;}
 "-"             {return MINUS;}
 "*"             {return TIMES;}
 "/"             {return OVER;}
+"="             {return ASSIGN;}
+"=="            {return EQ;}
+"!="            {return NEQ;}
+"<"             {return LT;}
+"<="            {return LE;}
+">"             {return GT;}
+">="            {return GE;}
+";"             {return SEMI;}
+","             {return COMMA;}
 "("             {return LPAREN;}
 ")"             {return RPAREN;}
-";"             {return SEMI;}
+"["             {return LBRACKET;}
+"]"             {return RBRACKET;}
+"{"             {return LBRACE;}
+"}"             {return RBRACE;}
+
+
+
 {number}        {return NUM;}
-{identifier}    {return ID;}
-{newline}       {lineno++;}
-{whitespace}    {/* skip whitespace */}
-"{"             { char c;
-                  do
-                  { c = input();
-                    if (c == EOF) break;
-                    if (c == '\n') lineno++;
-                  } while (c != '}');
+{identifier}    {
+                    /* Check if it's a reserved word */
+                    if (strcmp(yytext, "int") == 0) return INT;
+                    if (strcmp(yytext, "else") == 0) return ELSE;
+                    if (strcmp(yytext, "if") == 0) return IF;
+                    if (strcmp(yytext, "return") == 0) return RETURN;
+                    if (strcmp(yytext, "void") == 0) return VOID;
+                    if (strcmp(yytext, "while") == 0) return WHILE;
+                    
+                    /* Otherwise, it's an identifier */
+                    return ID;
                 }
+{newline}       {lineno++;
+                  printLine();}
+{whitespace}    {/* skip whitespace */}
 .               {return ERROR;}
+
+
 %%
-TokenType getToken(void)
-{ static int firstTime = TRUE;
-  TokenType currentToken;
-  if (firstTime)
-  { firstTime = FALSE;
-    lineno++;
-    yyin = source;
-    yyout = listing;
-  }
-  currentToken = yylex();
-  strncpy(tokenString,yytext,MAXTOKENLEN);
-  if (TraceScan) {
-    pc("\t%d: ",lineno);
-    printToken(currentToken,tokenString);
-  }
-  return currentToken;
+
+TokenType getToken(void) {
+    static int firstTime = TRUE;
+    static int lastPrintedLine = 0;
+    TokenType currentToken;
+
+    if (firstTime) {
+        firstTime = FALSE;
+        yyin = source;
+        yyout = listing;
+        lineno++; // Initialize lineno to 1
+        printLine();
+    }
+
+    currentToken = yylex();
+    strncpy(tokenString, yytext, MAXTOKENLEN);
+
+
+    if (TraceScan) {
+        pc("\t%d: ", lineno);
+        printToken(currentToken, tokenString);
+    }
+
+    return currentToken;
 }

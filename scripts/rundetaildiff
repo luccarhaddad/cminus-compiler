@@ -2,7 +2,7 @@ for f in ../alunodetail/*.txt
 do 
     OUTFILE=../detail/`basename $f`
     echo running diff  $f x ${OUTFILE}
-    diff -ZbB $f ${OUTFILE} > ../alunodetail/`basename -s .txt $f`.diff
+    diff -bB $f ${OUTFILE} > ../alunodetail/`basename -s .txt $f`.diff
 done
 
 echo RUNNING DIFFS FOR TM CODE
@@ -10,7 +10,7 @@ for f in ../alunodetail/*.tm
 do 
     OUTFILE=../detail/`basename $f`
     echo running diff  $f x ${OUTFILE}
-    diff -ZbB $f ${OUTFILE} > ../alunodetail/`basename -s .tm $f`.diff
+    diff -bB $f ${OUTFILE} > ../alunodetail/`basename -s .tm $f`.diff
 done
 
 echo GENERATED DIFFS - LEX
