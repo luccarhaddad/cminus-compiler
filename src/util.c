@@ -12,45 +12,48 @@
 /* Procedure printToken prints a token 
  * and its lexeme to the listing file
  */
-void printToken( TokenType token, const char* tokenString )
-{ switch (token)
-  { case IF:
-    case THEN:
-    case ELSE:
-    case END:
-    case REPEAT:
-    case UNTIL:
-    case READ:
-    case WRITE:
-      pc(
-         "reserved word: %s\n",tokenString);
-      break;
-    case ASSIGN: pc(":=\n"); break;
-    case LT: pc("<\n"); break;
-    case EQ: pc("=\n"); break;
-    case LPAREN: pc("(\n"); break;
-    case RPAREN: pc(")\n"); break;
-    case SEMI: pc(";\n"); break;
-    case PLUS: pc("+\n"); break;
-    case MINUS: pc("-\n"); break;
-    case TIMES: pc("*\n"); break;
-    case OVER: pc("/\n"); break;
-    case ENDFILE: pc("EOF\n"); break;
-    case NUM:
-      pc(
-          "NUM, val= %s\n",tokenString);
-      break;
-    case ID:
-      pc(
-          "ID, name= %s\n",tokenString);
-      break;
-    case ERROR:
-      pce(
-          "ERROR: %s\n",tokenString);
-      break;
-    default: /* should never happen */
-      pce("Unknown token: %d\n",token);
-  }
+void printToken(TokenType token, const char* tokenString) {
+    switch (token) {
+        case IF:
+        case ELSE:
+        case INT:
+        case RETURN:
+        case VOID:
+        case WHILE:
+            pc("reserved word: %s\n", tokenString);
+            break;
+        case ASSIGN: pc("=\n"); break;
+        case EQ: pc("==\n"); break;
+        case NEQ: pc("!=\n"); break;
+        case LT: pc("<\n"); break;
+        case LE: pc("<=\n"); break;
+        case GT: pc(">\n"); break;
+        case GE: pc(">=\n"); break;
+        case LPAREN: pc("(\n"); break;
+        case RPAREN: pc(")\n"); break;
+        case LBRACKET: pc("[\n"); break;
+        case RBRACKET: pc("]\n"); break;
+        case LBRACE: pc("{\n"); break;
+        case RBRACE: pc("}\n"); break;
+        case SEMI: pc(";\n"); break;
+        case COMMA: pc(",\n"); break;
+        case PLUS: pc("+\n"); break;
+        case MINUS: pc("-\n"); break;
+        case TIMES: pc("*\n"); break;
+        case OVER: pc("/\n"); break;
+        case ENDFILE: pc("EOF\n"); break;
+        case NUM:
+            pc("NUM, val= %s\n", tokenString);
+            break;
+        case ID:
+            pc("ID, name= %s\n", tokenString);
+            break;
+        case ERROR:
+            pce("ERROR: %s\n", tokenString);
+            break;
+        default:
+            pce("Unknown token: %d\n", token);
+    }
 }
 
 /* Function newStmtNode creates a new statement
@@ -120,6 +123,37 @@ static void printSpaces(void)
   for (i=0;i<indentno;i++)
     pc(" ");
 }
+/* Procedure printLine prints a full line
+ * of the source code, with its number
+ * reduntand_source is ANOTHER instance 
+ * of file pointer opened with the source code.
+ */
+void printLine() {
+    static int currentLine = 0;
+    static int firstCall = 1;
+    char line[1024];
+
+    if (firstCall) {
+        rewind(redundant_source); // Restart reading from the beginning
+        firstCall = 0;
+    }
+
+    char *ret = fgets(line, sizeof(line), redundant_source);
+    if (ret) {
+        currentLine++;
+        pc("%d: %s", currentLine, line);
+
+        // Handle EOF condition
+        if (feof(redundant_source)) {
+            // If the line doesn't end with a newline, add one
+            if (line[strlen(line) - 1] != '\n') {
+                pc("\n");
+            }
+        }
+    }
+}
+
+
 
 /* procedure printTree prints a syntax tree to the 
  * listing file using indentation to indicate subtrees
@@ -134,17 +168,11 @@ void printTree( TreeNode * tree )
         case IfK:
           pc("If\n");
           break;
-        case RepeatK:
-          pc("Repeat\n");
+        case WhileK:
+          pc("While\n");
           break;
         case AssignK:
           pc("Assign to: %s\n",tree->attr.name);
-          break;
-        case ReadK:
-          pc("Read: %s\n",tree->attr.name);
-          break;
-        case WriteK:
-          pc("Write\n");
           break;
         default:
           pce("Unknown ExpNode kind\n");
