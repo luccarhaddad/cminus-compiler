@@ -57,3 +57,5 @@ build
 .idea
 alunodetail
 alunoout
+.DS_Store
+check/

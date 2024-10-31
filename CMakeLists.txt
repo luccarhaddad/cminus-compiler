@@ -6,10 +6,10 @@ include(CMakePrintHelpers)
 cmake_print_variables(CMAKE_VERSION)
 
 SET(DOPARSE TRUE CACHE BOOL "if false, bison is not used, and only lexical analysis is performed")
+SET(BISON_EXECUTABLE "/opt/homebrew/opt/bison/bin/bison")
 
-# https://cmake.org/cmake/help/latest/module/FindFLEX.html
 if(DOPARSE) 
-   find_package(BISON REQUIRED)
+   find_package(BISON REQUIRED )
 endif()
 find_package(FLEX REQUIRED)
 
