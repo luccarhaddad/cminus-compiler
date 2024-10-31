@@ -1,0 +1,51 @@
+---
+# Indentation
+IndentWidth: 4
+UseTab: ForIndentation
+TabWidth: 4
+
+# Brace placement
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+# Pointer alignment
+PointerAlignment: Left
+
+# Column limit for line length (adjustable)
+ColumnLimit: 100
+
+# Function formatting
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+
+# Space management
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+SpacesInParentheses: false
+SpacesInContainerLiterals: false
+SpaceBeforeSquareBrackets: false
+
+# Alignment and break preferences
+AlignAfterOpenBracket: Align
+AlignOperands: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+
+# Miscellaneous
+IndentCaseLabels: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: true
+Cpp11BracedListStyle: true
+AllowAllParametersOfDeclarationOnNextLine: false

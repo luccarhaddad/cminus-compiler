@@ -8,7 +8,7 @@
 /* opção noyywrap pode ser necessária para novas versões do flex
   limitação: não compila mais de um arquivo fonte de uma só vez (não precisamos disso)
   https://stackoverflow.com/questions/1480138/undefined-reference-to-yylex 
-*/ 
+*/
 
 
 %{
@@ -58,9 +58,9 @@ comment     "/*"
 "=="            {return EQ;}
 "!="            {return NEQ;}
 "<"             {return LT;}
-"<="            {return LE;}
+"<="            {return LEQ;}
 ">"             {return GT;}
-">="            {return GE;}
+">="            {return GEQ;}
 ";"             {return SEMI;}
 ","             {return COMMA;}
 "("             {return LPAREN;}
@@ -71,20 +71,8 @@ comment     "/*"
 "}"             {return RBRACE;}
 
 
-
-{number}        {return NUM;}
-{identifier}    {
-                    /* Check if it's a reserved word */
-                    if (strcmp(yytext, "int") == 0) return INT;
-                    if (strcmp(yytext, "else") == 0) return ELSE;
-                    if (strcmp(yytext, "if") == 0) return IF;
-                    if (strcmp(yytext, "return") == 0) return RETURN;
-                    if (strcmp(yytext, "void") == 0) return VOID;
-                    if (strcmp(yytext, "while") == 0) return WHILE;
-                    
-                    /* Otherwise, it's an identifier */
-                    return ID;
-                }
+{number}        { yylval.val = atoi(yytext); return NUM; }
+{identifier}    { yylval.name = copyString(yytext); return ID; }
 {newline}       {lineno++;
                   printLine();}
 {whitespace}    {/* skip whitespace */}
