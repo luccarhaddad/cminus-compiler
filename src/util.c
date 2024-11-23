@@ -1,18 +1,15 @@
-/****************************************************/
-/* File: util.c                                     */
-/* Utility function implementation                  */
-/* for the TINY compiler                            */
-/* Compiler Construction: Principles and Practice   */
-/* Kenneth C. Louden                                */
-/****************************************************/
-
 #include "util.h"
 #include "globals.h"
+
+#include <log.h>
+#include <stdlib.h>
+#include <string.h>
+#include <parser.h>
 
 /* Procedure printToken prints a token
  * and its lexeme to the listing file
  */
-void printToken(TokenType token, const char* tokenString) {
+void printToken(const TokenType token, const char* tokenString) {
 	switch (token) {
 		case IF:
 		case ELSE:
@@ -25,22 +22,22 @@ void printToken(TokenType token, const char* tokenString) {
 		case ASSIGN:
 			pc("=\n");
 			break;
-		case EQ:
+		case OP_EQ:
 			pc("==\n");
 			break;
-		case NEQ:
+		case OP_NEQ:
 			pc("!=\n");
 			break;
-		case LT:
+		case OP_LT:
 			pc("<\n");
 			break;
-		case LEQ:
+		case OP_LEQ:
 			pc("<=\n");
 			break;
-		case GT:
+		case OP_GT:
 			pc(">\n");
 			break;
-		case GEQ:
+		case OP_GEQ:
 			pc(">=\n");
 			break;
 		case LPAREN:
@@ -99,44 +96,32 @@ void printToken(TokenType token, const char* tokenString) {
 /* Function newStmtNode creates a new statement
  * node for syntax tree construction
  */
-TreeNode* newStmtNode(StmtKind kind) {
-	TreeNode* t = (TreeNode*) malloc(sizeof(TreeNode));
-	if (t == NULL)
-		pce("Out of memory error at line %d\n", lineno);
-	else {
-		for (int i = 0; i < MAXCHILDREN; i++) t->child[i] = NULL;
-		t->sibling   = NULL;
-		t->nodekind  = StmtK;
-		t->kind.stmt = kind;
-		t->lineno    = lineno;
+ASTNode* newStmtNode(const int kind) {
+	ASTNode* node = createNode(kind);
+	if (!node) {
+		fprintf(stderr, "Out of memory error at line %d\n", lineno);
+		return NULL;
 	}
-	return t;
+	node->lineNo = lineno;
+	return node;
 }
 
-/* Function newExpNode creates a new expression
- * node for syntax tree construction
- */
-TreeNode* newExpNode(ExpKind kind) {
-	TreeNode* t = (TreeNode*) malloc(sizeof(TreeNode));
-	if (t == NULL)
-		pce("Out of memory error at line %d\n", lineno);
-	else {
-		for (int i = 0; i < MAXCHILDREN; i++) t->child[i] = NULL;
-		t->sibling  = NULL;
-		t->nodekind = ExpK;
-		t->kind.exp = kind;
-		t->lineno   = lineno;
-		t->type     = Void;
+ASTNode* newExpNode(const int kind) {
+	ASTNode* node = createNode(kind);
+	if (!node) {
+		fprintf(stderr, "Out of memory error at line %d\n", lineno);
+		return NULL;
 	}
-	return t;
+	node->lineNo = lineno;
+	return node;
 }
 
 /* Function copyString allocates and makes a new
  * copy of an existing string
  */
-char* copyString(char* s) {
+char* copyString(const char* s) {
 	if (s == NULL) return NULL;
-	const int n = strlen(s) + 1;
+	const unsigned int n = strlen(s) + 1;
 	char*     t = malloc(n);
 	if (t == NULL)
 		pce("Out of memory error at line %d\n", lineno);
@@ -156,7 +141,8 @@ static int indentno = 0;
 
 /* printSpaces indents by printing spaces */
 static void printSpaces(void) {
-	for (int i = 0; i < indentno; i++) pc(" ");
+	for (int i = 0; i < indentno; i++)
+		pc(" ");
 }
 /* Procedure printLine prints a full line
  * of the source code, with its number
@@ -188,96 +174,103 @@ void printLine() {
 	}
 }
 
-const char* ExpTypeToString(ExpType type) {
-	switch (type) {
-		case Void:
-			return "void";
-		case Integer:
-			return "int";
-		default:
-			return "unknown";
+const char* ExpTypeToString(const TypeInfo* type) {
+	switch (type->baseType) {
+		case TYPE_VOID:    return "void";
+		case TYPE_INT:     return "int";
+		case TYPE_BOOLEAN: return "boolean";
+		case TYPE_ARRAY:   return "array";
+		default:           return "unknown";
 	}
 }
 
 /* procedure printTree prints a syntax tree to the
  * listing file using indentation to indicate subtrees
  */
-void printTree(TreeNode* tree) {
+void printTree(ASTNode* tree) {
 	while (tree != NULL) {
 		printSpaces();
-		if (tree->nodekind == StmtK) {
-			switch (tree->kind.stmt) {
-				case IfK:
+
+		if (tree->kind) {
+			switch (tree->kind) {
+				case NODE_PROGRAM:
+					pc("Program\n");
+				break;
+				case NODE_FUNCTION:
+					pc("Declare function (return type \"%s\"): %s\n",
+					   ExpTypeToString(tree->data.symbol.type->returnType), tree->data.symbol.name);
+				break;
+				case NODE_IF:
 					pc("Conditional selection\n");
 				break;
-				case WhileK:
+				case NODE_WHILE:
 					pc("Iteration (loop)\n");
 				break;
-				case AssignK: {
-					const TreeNode* varNode = tree->child[0];
-					if (varNode->nodekind == ExpK && varNode->kind.exp == IdK) {
-						if (varNode->child[0] != NULL) {
-							pc("Assign to array: %s\n", varNode->attr.name);
+				case NODE_ASSIGN: {
+					ASTNode* target = tree->children[0];
+
+					if (target == NULL) {
+						pc("Assign to: (unknown)\n");
+						break;
+					}
+
+					if (target->kind == NODE_IDENTIFIER) {
+						if (target->children[0] != NULL) {
+							pc("Assign to array: %s\n", target->data.symbol.name);
 							INDENT;
-							if(varNode->child[0]->attr.val != 0)
-								printTree(varNode->child[0]);
+							printTree(target->children[0]);  // Print array index
 							UNINDENT;
 						} else {
-							pc("Assign to var: %s\n", varNode->attr.name);
+							pc("Assign to var: %s\n", target->data.symbol.name);
 						}
-					} else {
-						pc("Assign to: (unknown)\n");
+						// Only print the value being assigned, not the target identifier again
+						INDENT;
+						printTree(tree->children[1]);  // Print the value being assigned
+						UNINDENT;
+						tree = tree->next;
+						continue;
 					}
 					break;
 				}
-				case ReturnK:
-					pc("Return\n");
-				break;
-				case ParamK:
-					pc("Function param (%s %s): %s\n", ExpTypeToString(tree->type),
-					   (tree->isArray ? "array" : "var"), tree->attr.name);
-				break;
-				case VarK:
-					pc("Declare %s %s: %s\n", ExpTypeToString(tree->type),
-					   (tree->child[0] ? "array" : "var"), tree->attr.name);
-				break;
-				case FuncK:
-					pc("Declare function (return type \"%s\"): %s\n", ExpTypeToString(tree->type),
-					   tree->attr.name);
-				break;
-				default:
-					pce("Unknown Stmt kind\n");
-				break;
-			}
-		} else if (tree->nodekind == ExpK) {
-			switch (tree->kind.exp) {
-				case OpK:
+				case NODE_PARAM:
+					pc("Function param (%s %s): %s\n",
+						ExpTypeToString(tree->data.symbol.type),
+						(tree->data.symbol.type->arraySize >= 0 ? "array" : "var"),
+						tree->data.symbol.name);
+					break;
+				case NODE_VARIABLE:
+					pc("Declare %s %s: %s\n", ExpTypeToString(tree->data.symbol.type),
+					   (tree->data.symbol.type->arraySize >= 0 ? "array" : "var"), tree->data.symbol.name);
+					break;
+				case NODE_OPERATOR:
 					pc("Op: ");
-				printToken(tree->attr.op, "\0");
+					printToken(tree->data.operator, "\0");
 				break;
-				case ConstK:
-					pc("Const: %d\n", tree->attr.val);
+				case NODE_CONSTANT:
+					pc("Const: %d\n", tree->data.constValue);
 				break;
-				case IdK:
-					pc("Id: %s\n", tree->attr.name);
+				case NODE_IDENTIFIER:
+					pc("Id: %s\n", tree->data.symbol.name);
 				break;
-				case CallK:
-					pc("Function call: %s\n", tree->attr.name);
+				case NODE_CALL:
+					pc("Function call: %s\n", tree->data.symbol.name);
+				break;
+				case NODE_RETURN:
+					pc("Return\n");
 				break;
 				default:
 					pce("Unknown ExpNode kind\n");
 				break;
 			}
-		} else
-			pce("Unknown node kind\n");
-		for (int i = 0; i < MAXCHILDREN; i++) {
-			if (tree->nodekind == StmtK && tree->kind.stmt == AssignK && i == 0) {
-				continue;
+
+			if (tree->kind != NODE_ASSIGN) {
+				for (int i = 0; i < MAXCHILDREN; i++) {
+					INDENT;
+					printTree(tree->children[i]);
+					UNINDENT;
+				}
 			}
-			INDENT;
-			printTree(tree->child[i]);
-			UNINDENT;
+			tree = tree->next;
 		}
-		tree = tree->sibling;
 	}
 }

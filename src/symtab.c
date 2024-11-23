@@ -1,14 +1,6 @@
-/****************************************************/
-/* File: symtab.c                                   */
-/* Symbol table implementation for the TINY compiler*/
-/* (allows only one symbol table)                   */
-/* Symbol table is implemented as a chained         */
-/* hash table                                       */
-/* Compiler Construction: Principles and Practice   */
-/* Kenneth C. Louden                                */
-/****************************************************/
-
 #include "symtab.h"
+
+#include <log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +13,7 @@
 #define SHIFT 4
 
 /* the hash function */
-static int hash(char* key) {
+static int hash(const char* key) {
 	int temp = 0;
 	int i    = 0;
 	while (key[i] != '\0') {
@@ -60,8 +52,8 @@ static BucketList hashTable[SIZE];
  * loc = memory location is inserted only the
  * first time, otherwise ignored
  */
-void st_insert(char* name, int lineno, int loc) {
-	int        h = hash(name);
+void st_insert(char* name, const int lineno, const int loc) {
+	const int  h = hash(name);
 	BucketList l = hashTable[h];
 	while ((l != NULL) && (strcmp(name, l->name) != 0)) l = l->next;
 	if (l == NULL) /* variable not yet in table */
@@ -87,8 +79,8 @@ void st_insert(char* name, int lineno, int loc) {
 /* Function st_lookup returns the memory
  * location of a variable or -1 if not found
  */
-int st_lookup(char* name) {
-	int        h = hash(name);
+int st_lookup(const char* name) {
+	const int  h = hash(name);
 	BucketList l = hashTable[h];
 	while ((l != NULL) && (strcmp(name, l->name) != 0)) l = l->next;
 	if (l == NULL)
@@ -101,10 +93,9 @@ int st_lookup(char* name) {
  * list of the symbol table contents
  */
 void printSymTab() {
-	int i;
 	pc("Variable Name  Location   Line Numbers\n");
 	pc("-------------  --------   ------------\n");
-	for (i = 0; i < SIZE; ++i) {
+	for (int i = 0; i < SIZE; ++i) {
 		if (hashTable[i] != NULL) {
 			BucketList l = hashTable[i];
 			while (l != NULL) {

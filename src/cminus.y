@@ -2,20 +2,35 @@
 #define YYPARSER /* distinguishes Yacc output from other code files */
 
 #include "globals.h"
+#include "types.h"
+#include "ast.h"
 #include "util.h"
 #include "scan.h"
 #include "parse.h"
+#include "log.h"
 
 #ifndef _PARSE_H_
 #define _PARSE_H_
 
-TreeNode* parse(void);
+ASTNode* parse(void);
 
 #endif
 
+#define MAP_TOKEN_TO_OP(token) \
+    ((token) == OP_PLUS ? PLUS : \
+     (token) == OP_MINUS ? MINUS : \
+     (token) == OP_TIMES ? TIMES : \
+     (token) == OP_OVER ? OVER : \
+     (token) == OP_LT ? LT : \
+     (token) == OP_GT ? GT : \
+     (token) == OP_LEQ ? LEQ : \
+     (token) == OP_GEQ ? GEQ : \
+     (token) == OP_EQ ? EQ : \
+     (token) == OP_NEQ ? NEQ : -1)
+
 static char* savedName; /* for use in assignments */
 static int savedLineNo;  /* ditto */
-static TreeNode* savedTree; /* stores syntax tree for later return */
+static ASTNode* savedTree; /* stores syntax tree for later return */
 static int yylex(void);
 int yyerror(char *);
 
@@ -25,8 +40,8 @@ int yyerror(char *);
     int val;
     char *name;
     TokenType token;
-    TreeNode* node;
-    ExpType type;
+    ASTNode* node;
+    Type type;
 }
 
 /* Token declaration */
@@ -34,7 +49,6 @@ int yyerror(char *);
 %token <val>  NUM
 %token <type> INT VOID
 %token IF ELSE WHILE RETURN ERROR
-
 %token PLUS MINUS TIMES OVER
 %token LT GT LEQ GEQ EQ NEQ
 %token ASSIGN
@@ -62,11 +76,11 @@ programa:
 declaracao_lista:
     declaracao_lista declaracao
         {
-            TreeNode* t = $1;
+            ASTNode* t = $1;
             if(t != NULL) {
-                while(t->sibling != NULL)
-                    t = t->sibling;
-                t->sibling = $2;
+                while(t->next != NULL)
+                    t = t->next;
+                t->next = $2;
                 $$ = $1;
             } else {
                 $$ = $2;
@@ -86,35 +100,37 @@ declaracao:
 var_declaracao:
     tipo_especificador ID SEMI
         { 
-            $$ = newStmtNode(VarK);
-            $$->attr.name = $2;
-            $$->type = $1;
+            $$ = createNode(NODE_VARIABLE);
+            $$->data.symbol.name = $2;
+            $$->data.symbol.type = createType($1);
         }
     | tipo_especificador ID LBRACKET NUM RBRACKET SEMI
         {
-            $$ = newStmtNode(VarK);
-            $$->attr.name = $2;
-            $$->type = $1;
-            $$->child[0] = newExpNode(ConstK);
-            $$->child[0]->attr.val = $4;
+            $$ = createNode(NODE_VARIABLE);
+            $$->data.symbol.name = $2;
+            $$->data.symbol.type = createArrayType($1, $4);
+
+            ASTNode* sizeNode = createNode(NODE_CONSTANT);
+            sizeNode->data.constValue = $4;
+            $$->children[0] = sizeNode;
         }
     ;
 
 tipo_especificador:
     INT
-        { $$ = Integer; }
+        { $$ = TYPE_INT; }
     | VOID
-        { $$ = Void; }
+        { $$ = TYPE_VOID; }
     ;
 
 fun_declaracao:
     tipo_especificador ID LPAREN params RPAREN composto_decl
         {
-            $$ = newStmtNode(FuncK);
-            $$->attr.name = $2;
-            $$->type = $1;
-            $$->child[0] = $4;
-            $$->child[1] = $6;
+            $$ = createNode(NODE_FUNCTION);
+            $$->data.symbol.name = $2;
+            $$->data.symbol.type = createFunctionType(createType($1));
+            $$->children[0] = $4; // Parameters
+            $$->children[1] = $6; // Function body
         }
     ;
 
@@ -128,11 +144,11 @@ params:
 param_lista:
     param_lista COMMA param
         {
-            TreeNode* t = $1;
+            ASTNode* t = $1;
             if (t != NULL) {
-                while(t->sibling != NULL)
-                    t = t->sibling;
-                t->sibling = $3;
+                while(t->next != NULL)
+                    t = t->next;
+                t->next = $3;
                 $$ = $1;
             } else {
                 $$ = $3;
@@ -145,29 +161,27 @@ param_lista:
 param:
     tipo_especificador ID
         {
-            $$ = newStmtNode(ParamK);
-            $$->attr.name = $2;
-            $$->type = $1;
-            $$->isArray = 0;
+            $$ = createNode(NODE_PARAM);
+            $$->data.symbol.name = $2;
+            $$->data.symbol.type = createType($1);
         }
     | tipo_especificador ID LBRACKET RBRACKET
         {
-            $$ = newStmtNode(ParamK);
-            $$->attr.name = $2;
-            $$->type = $1;
-            $$->isArray = 1;
+            $$ = createNode(NODE_PARAM);
+            $$->data.symbol.name = $2;
+            $$->data.symbol.type = createArrayType($1, 0);
         }
     ;
 
 composto_decl:
     LBRACE local_declaracoes statement_lista RBRACE
         {
-            TreeNode* t = $2;
+            ASTNode* t = $2;
             if (t != NULL) {
-                while(t->sibling != NULL)
-                    t = t->sibling;
-                t->sibling = $3;
-                $$ = $2;
+                while(t->next != NULL)
+                    t = t->next;
+                t->next = $3;
+                $$ = $2 ? $2 : $3; // Por que isso?
             } else {
                 $$ = $3;
             }
@@ -177,11 +191,11 @@ composto_decl:
 local_declaracoes:
     local_declaracoes var_declaracao
         {
-            TreeNode* t = $1;
+            ASTNode* t = $1;
             if (t != NULL) {
-                while(t->sibling != NULL)
-                    t = t->sibling;
-                t->sibling = $2;
+                while(t->next != NULL)
+                    t = t->next;
+                t->next = $2;
                 $$ = $1;
             } else {
                 $$ = $2;
@@ -194,11 +208,11 @@ local_declaracoes:
 statement_lista:
     statement_lista statement
         {
-            TreeNode* t = $1;
+            ASTNode* t = $1;
             if (t != NULL) {
-                while(t->sibling != NULL)
-                    t = t->sibling;
-                t->sibling = $2;
+                while(t->next != NULL)
+                    t = t->next;
+                t->next = $2;
                 $$ = $1;
             } else {
                 $$ = $2;
@@ -231,44 +245,44 @@ expressao_decl:
 selecao_decl:
     IF LPAREN expressao RPAREN statement
         { 
-            $$ = newStmtNode(IfK);
-            $$->child[0] = $3;
-            $$->child[1] = $5;
+            $$ = createNode(NODE_IF);
+            $$->children[0] = $3;
+            $$->children[1] = $5;
         }
     | IF LPAREN expressao RPAREN statement ELSE statement
         {
-            $$ = newStmtNode(IfK);
-            $$->child[0] = $3;
-            $$->child[1] = $5;
-            $$->child[2] = $7;
+            $$ = createNode(NODE_IF);
+            $$->children[0] = $3;
+            $$->children[1] = $5;
+            $$->children[2] = $7;
         }
     ;
 
 iteracao_decl:
     WHILE LPAREN expressao RPAREN statement
         {
-            $$ = newStmtNode(WhileK);
-            $$->child[0] = $3;
-            $$->child[1] = $5;
+            $$ = createNode(NODE_WHILE);
+            $$->children[0] = $3;
+            $$->children[1] = $5;
         }
     ;
 
 retorno_decl:
     RETURN SEMI
-        { $$ = newStmtNode(ReturnK); }
+        { $$ = createNode(NODE_RETURN); }
     | RETURN expressao SEMI
         { 
-            $$ = newStmtNode(ReturnK);
-            $$->child[0] = $2;
+            $$ = createNode(NODE_RETURN);
+            $$->children[0] = $2;
         }
     ;
 
 expressao:
     var ASSIGN expressao
         {
-            $$ = newStmtNode(AssignK);
-            $$->child[0] = $1;
-            $$->child[1] = $3;
+            $$ = createNode(NODE_ASSIGN);
+            $$->children[0] = $1;
+            $$->children[1] = $3;
         }
     | simples_expressao
         { $$ = $1; }
@@ -277,24 +291,24 @@ expressao:
 var:
     ID
         {
-            $$ = newExpNode(IdK);
-            $$->attr.name = $1;
+            $$ = createNode(NODE_IDENTIFIER);
+            $$->data.symbol.name = $1;
         }
     | ID LBRACKET expressao RBRACKET
         {
-            $$ = newExpNode(IdK);
-            $$->attr.name = $1;
-            $$->child[0] = $3;
+            $$ = createNode(NODE_IDENTIFIER);
+            $$->data.symbol.name = $1;
+            $$->children[0] = $3;
         }
     ;
 
 simples_expressao:
     soma_expressao relacional soma_expressao
         { 
-            $$ = newExpNode(OpK);
-            $$->child[0] = $1;
-            $$->child[1] = $3;
-            $$->attr.op = $2;
+            $$ = createNode(NODE_OPERATOR);
+            $$->children[0] = $1;
+            $$->children[1] = $3;
+            $$->data.operator = $2;
         }
     | soma_expressao
         { $$ = $1; }
@@ -302,26 +316,26 @@ simples_expressao:
 
 relacional:
     LEQ
-        { $$ = LEQ; }
+        { $$ = OP_LEQ; }
     | LT
-        { $$ = LT; }
+        { $$ = OP_LT; }
     | GT
-        { $$ = GT; }
+        { $$ = OP_GT; }
     | GEQ
-        { $$ = GEQ; }
+        { $$ = OP_GEQ; }
     | EQ
-        { $$ = EQ; }
+        { $$ = OP_EQ; }
     | NEQ
-        { $$ = NEQ; }
+        { $$ = OP_NEQ; }
     ;
 
 soma_expressao:
     soma_expressao soma termo
         {
-            $$ = newExpNode(OpK);
-            $$->child[0] = $1;
-            $$->child[1] = $3;
-            $$->attr.op = $2;
+            $$ = createNode(NODE_OPERATOR);
+            $$->children[0] = $1;
+            $$->children[1] = $3;
+            $$->data.operator = $2;
         }
     | termo
         { $$ = $1; }
@@ -329,18 +343,18 @@ soma_expressao:
 
 soma:
     PLUS
-        { $$ = PLUS; }
+        { $$ = MAP_TOKEN_TO_OP(OP_PLUS); }
     | MINUS
-        { $$ = MINUS; }
+        { $$ = MAP_TOKEN_TO_OP(OP_MINUS); }
     ;
 
 termo:
     termo mult fator
         { 
-            $$ = newExpNode(OpK);
-            $$->child[0] = $1;
-            $$->child[1] = $3;
-            $$->attr.op = $2;
+            $$ = createNode(NODE_OPERATOR);
+            $$->children[0] = $1;
+            $$->children[1] = $3;
+            $$->data.operator = $2;
         }
     | fator
         { $$ = $1; }
@@ -348,9 +362,9 @@ termo:
 
 mult:
     TIMES
-        { $$ = TIMES; }
+        { $$ = MAP_TOKEN_TO_OP(OP_TIMES); }
     | OVER
-        { $$ = OVER; }
+        { $$ = MAP_TOKEN_TO_OP(OP_OVER); }
     ;
 
 fator:
@@ -362,17 +376,17 @@ fator:
         { $$ = $1; }
     | NUM
         { 
-            $$ = newExpNode(ConstK);
-            $$->attr.val = $1;
+            $$ = createNode(NODE_CONSTANT);
+            $$->data.constValue = $1;
         }
     ;
 
 ativacao:
     ID LPAREN args RPAREN
         { 
-            $$ = newExpNode(CallK);
-            $$->attr.name = $1;
-            $$->child[0] = $3;
+            $$ = createNode(NODE_CALL);
+            $$->data.symbol.name = $1;
+            $$->children[0] = $3;
         }
     ;
 
@@ -386,11 +400,11 @@ args:
 arg_lista:
     arg_lista COMMA expressao
         {
-            TreeNode* t = $1;
+            ASTNode* t = $1;
             if (t != NULL) {
-                while(t->sibling != NULL)
-                    t = t->sibling;
-                t->sibling = $3;
+                while(t->next != NULL)
+                    t = t->next;
+                t->next = $3;
                 $$ = $1;
             } else {
                 $$ = $3;
@@ -416,7 +430,7 @@ int yyerror(char * message)
 static int yylex(void)
 { return getToken(); }
 
-TreeNode * parse(void)
+ASTNode* parse(void)
 { yyparse();
   return savedTree;
 }

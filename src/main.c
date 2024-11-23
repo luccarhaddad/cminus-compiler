@@ -1,10 +1,3 @@
-/****************************************************/
-/* File: main.c                                     */
-/* Main program for TINY compiler                   */
-/* Compiler Construction: Principles and Practice   */
-/* Kenneth C. Louden                                */
-/****************************************************/
-
 #include "globals.h"
 
 /* set NO_PARSE to TRUE to get a scanner-only compiler */
@@ -18,10 +11,15 @@
 #define NO_CODE TRUE
 
 #include "util.h"
+
+#include <log.h>
+#include <stdlib.h>
+#include <string.h>
 #if NO_PARSE
 #include "scan.h"
 #else
 #include "parse.h"
+#include "ast.h"
 #if !NO_ANALYZE
 #include "analyze.h"
 #if !NO_CODE
@@ -47,7 +45,7 @@ int TraceCode    = FALSE;
 int Error = FALSE;
 
 int main(int argc, char* argv[]) {
-	TreeNode* syntaxTree;
+	ASTNode* syntaxTree;
 
 	//// opening sources ////
 	char pgm[120]; /* source code file name */
