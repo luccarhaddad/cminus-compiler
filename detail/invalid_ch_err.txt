@@ -1,3 +1,0 @@
-ERROR: @
-Syntax error at line 5: syntax error
-Current token: ERROR: @

@@ -1,19 +1,7 @@
-/****************************************************/
-/* File: globals.h                                  */
-/* Global types and vars for TINY compiler          */
-/* must come before other include files             */
-/* Compiler Construction: Principles and Practice   */
-/* Kenneth C. Louden                                */
-/****************************************************/
-
 #ifndef _GLOBALS_H_
 #define _GLOBALS_H_
 
-#include "log.h"
-#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #ifndef FALSE
 #define FALSE 0
@@ -26,17 +14,16 @@
 /* MAXRESERVED = the number of reserved words */
 #define MAXRESERVED 6
 
-// typedef enum
-//     /* book-keeping tokens */
-//    {ENDFILE,ERROR,
-//     /* reserved words */
-//     IF,ELSE,INT,RETURN,VOID,WHILE,
-//     /* multicharacter tokens */
-//     ID,NUM,
-//     /* special symbols */
-//     ASSIGN,EQ,NEQ,LT,LE,GT,GE,PLUS,MINUS,TIMES,OVER,LPAREN,RPAREN,
-//     LBRACKET,RBRACKET,LBRACE,RBRACE,SEMI,COMMA
-//    } TokenType;
+// typedef enum {
+//     // Keywords
+//     ENDFILE, IF, ELSE, INT, RETURN, VOID, WHILE,
+//     // Special symbols
+//     ASSIGN, EQ, NEQ, LT, LEQ, GT, GEQ,
+//     LPAREN, RPAREN, LBRACKET, RBRACKET, LBRACE, RBRACE,
+//     SEMI, COMMA, PLUS, MINUS, TIMES, OVER,
+//     // Other tokens
+//     NUM, ID, ERROR
+// } TokenType;
 
 typedef int TokenType;
 
@@ -51,32 +38,25 @@ extern int lineno; /* source line number for listing */
 /***********   Syntax tree for parsing ************/
 /**************************************************/
 
-typedef enum { StmtK, ExpK } NodeKind;
-typedef enum { IfK, WhileK, ReturnK, AssignK, ParamK, VarK, FuncK } StmtKind;
-typedef enum { OpK, ConstK, IdK, CallK } ExpKind;
-
-/* ExpType is used for type checking */
-typedef enum { Void, Integer, Boolean } ExpType;
-
 #define MAXCHILDREN 3
-
-typedef struct treeNode {
-	struct treeNode* child[MAXCHILDREN];
-	struct treeNode* sibling;
-	int              lineno;
-	NodeKind         nodekind;
-	union {
-		StmtKind stmt;
-		ExpKind  exp;
-	} kind;
-	union {
-		TokenType op;
-		int       val;
-		char*     name;
-	} attr;
-	ExpType type; /* for type checking of exps */
-	int isArray;
-} TreeNode;
+//
+// typedef struct treeNode {
+// 	struct treeNode* child[MAXCHILDREN];
+// 	struct treeNode* sibling;
+// 	int              lineno;
+// 	NodeKind         nodekind;
+// 	union {
+// 		StmtKind stmt;
+// 		ExpKind  exp;
+// 	} kind;
+// 	union {
+// 		TokenType op;
+// 		int       val;
+// 		char*     name;
+// 	} attr;
+// 	ExpType type; /* for type checking of exps */
+// 	int     isArray;
+// } TreeNode;
 
 /**************************************************/
 /***********   Flags for tracing       ************/
@@ -114,7 +94,6 @@ extern int TraceCode;
 extern int Error;
 
 #ifndef YYPARSER
-#include "parser.h"
 #define ENDFILE 0
 #endif
 
