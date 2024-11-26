@@ -144,6 +144,7 @@ static void printSpaces(void) {
 	for (int i = 0; i < indentno; i++)
 		pc(" ");
 }
+
 /* Procedure printLine prints a full line
  * of the source code, with its number
  * reduntand_source is ANOTHER instance
