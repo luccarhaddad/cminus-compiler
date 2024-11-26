@@ -187,7 +187,7 @@ const char* ExpTypeToString(const TypeInfo* type) {
 /* procedure printTree prints a syntax tree to the
  * listing file using indentation to indicate subtrees
  */
-void printTree(ASTNode* tree) {
+void printTree(const ASTNode* tree) {
 	while (tree != NULL) {
 		printSpaces();
 

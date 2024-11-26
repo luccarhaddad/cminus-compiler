@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION, SYMBOL_PARAMETER } SymbolKind;
+typedef enum { SYMBOL_VARIABLE, SYMBOL_FUNCTION, SYMBOL_PARAMETER, SYMBOL_ARRAY } SymbolKind;
 
 typedef struct Symbol {
 	const char* name;
@@ -21,11 +21,13 @@ typedef struct Symbol {
 } Symbol;
 
 typedef struct Scope {
-	const char*   name;
-	int           level; // Nesting level
-	struct Scope* parent;
-	Symbol**      symbols;     // Hash table of symbols
-	int           symbolCount; // Number of symbols in this scope
+	const char*   	name;
+	struct Scope*   parent;
+	struct Scope**	children;    // Child scopes
+	int             childCount;
+	int             level;       // Nesting level
+	Symbol**      	symbols;     // Hash table of symbols
+	int           	symbolCount; // Number of symbols in this scope
 } Scope;
 
 /* Symbol table functions */
@@ -38,5 +40,8 @@ void    destroySymbol(Symbol* symbol);
 /* Scope functions */
 Scope* createScope(const char* name, Scope* parent);
 void   destroyScope(Scope* scope);
+
+/* Symbol table printing functions */
+void printSymbolTable(Scope* globalScope);
 
 #endif
