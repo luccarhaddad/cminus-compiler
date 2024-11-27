@@ -87,8 +87,8 @@ int main(int argc, char* argv[]) {
 		fprintf(listing, "\nSyntax tree:\n");
 		printTree(syntaxTree);
 	}
-	doneSYNstartTAB();
 #if !NO_ANALYZE
+	doneSYNstartTAB();
 	if (!Error) {
 		if (TraceAnalyze) fprintf(listing, "\nBuilding Symbol Table...\n");
 		buildSymTab(syntaxTree);

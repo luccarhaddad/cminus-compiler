@@ -124,13 +124,14 @@ tipo_especificador:
     ;
 
 fun_declaracao:
-    tipo_especificador ID LPAREN params RPAREN composto_decl
+    tipo_especificador ID { savedLineNo = lineno; } LPAREN params RPAREN composto_decl
         {
             $$ = createNode(NODE_FUNCTION);
             $$->data.symbol.name = $2;
+            $$->lineNo = savedLineNo;
             $$->data.symbol.type = createFunctionType(createType($1));
-            $$->children[0] = $4; // Parameters
-            $$->children[1] = $6; // Function body
+            $$->children[0] = $5; // Parameters
+            $$->children[1] = $7; // Function body
         }
     ;
 

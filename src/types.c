@@ -3,7 +3,6 @@
 //
 
 #include "types.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -59,28 +58,28 @@ void addParameter(TypeInfo* functionType, TypeInfo* parameterType) {
 
 bool areTypesCompatible(TypeInfo* t1, TypeInfo* t2) {
 	if (!t1 || !t2)
-		return 0;
+		return false;
 
 	if (t1->baseType != t2->baseType)
-		return 0;
+		return false;
 
 	if (t1->baseType == TYPE_ARRAY && t1->arraySize != t2->arraySize)
-		return 0;
+		return false;
 
 	if (t1->returnType && t2->returnType) {
 		if (!areTypesCompatible(t1->returnType, t2->returnType))
-			return 0;
+			return false;
 	}
 
 	if (t1->parameters.count != t2->parameters.count)
-		return 0;
+		return false;
 
 	for (int i = 0; i < t1->parameters.count; i++) {
 		if (!areTypesCompatible(t1->parameters.types[i], t2->parameters.types[i]))
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 void destroyType(TypeInfo* type) {

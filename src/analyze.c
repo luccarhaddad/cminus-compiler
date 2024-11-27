@@ -54,9 +54,29 @@ static bool checkBinaryOperands(const ASTNode* t, const TypeInfo* expectedType) 
 		return false;
 	}
 
-	TypeInfo* leftType =
-	    (leftNode->kind == NODE_CONSTANT) ? createType(TYPE_INT) : leftNode->data.symbol.type;
-	if (!leftType || !areTypesCompatible(leftType, expectedType)) {
+	TypeInfo* leftType = NULL;
+	switch (leftNode->kind) {
+		case NODE_VARIABLE:
+		case NODE_IDENTIFIER:
+			leftType = leftNode->data.symbol.type;
+		break;
+		case NODE_CONSTANT:
+			leftType = createType(TYPE_INT);
+		break;
+		case NODE_OPERATOR:
+			leftType = createType(leftNode->resultType->baseType);
+			break;
+		default:
+			typeError(t, "Invalid left operand type");
+		return false;
+	}
+
+	if (!leftType) {
+		typeError(t, "Left operand has no type information");
+		return false;
+	}
+
+	if (!areTypesCompatible(leftType, expectedType)) {
 		typeError(t, "Left operand type does not match expected type");
 		return false;
 	}
@@ -67,15 +87,36 @@ static bool checkBinaryOperands(const ASTNode* t, const TypeInfo* expectedType) 
 		return false;
 	}
 
-	TypeInfo* rightType =
-	    (rightNode->kind == NODE_CONSTANT) ? createType(TYPE_INT) : rightNode->data.symbol.type;
-	if (!rightType || !areTypesCompatible(rightType, expectedType)) {
+	TypeInfo* rightType = NULL;
+	switch (rightNode->kind) {
+		case NODE_VARIABLE:
+		case NODE_IDENTIFIER:
+			rightType = rightNode->data.symbol.type;
+		break;
+		case NODE_CONSTANT:
+			rightType = createType(TYPE_INT);
+		break;
+		case NODE_OPERATOR:
+			rightType = createType(rightNode->resultType->baseType);
+		break;
+		default:
+			typeError(t, "Invalid right operand type");
+		return false;
+	}
+
+	if (!rightType) {
+		typeError(t, "Right operand has no type information");
+		return false;
+	}
+
+	if (!areTypesCompatible(rightType, expectedType)) {
 		typeError(t, "Right operand type does not match expected type");
 		return false;
 	}
 
 	return true;
 }
+
 
 static void traverse(ASTNode* t, void (*preProc)(ASTNode*), void (*postProc)(ASTNode*)) {
 	if (t) {
@@ -155,6 +196,8 @@ static void insertNode(ASTNode* t) {
 void buildSymTab(ASTNode* syntaxTree) {
 	globalScope  = createScope("global", NULL);
 	currentScope = globalScope;
+	addSymbol(globalScope, createSymbol("input", SYMBOL_FUNCTION, createType(TYPE_INT)));
+	addSymbol(globalScope, createSymbol("output", SYMBOL_FUNCTION, createType(TYPE_VOID)));
 
 	traverse(syntaxTree, insertNode, nullProc);
 
@@ -251,8 +294,8 @@ static void checkNode(ASTNode* t) {
 					case NODE_CONSTANT:
 						typeError(t, "Cannot assign to a constant");
 						break;
-					case NODE_IDENTIFIER:
 					case NODE_VARIABLE:
+					case NODE_IDENTIFIER:
 						leftType = leftNode->data.symbol.type;
 						break;
 					default:
@@ -298,6 +341,7 @@ static void checkNode(ASTNode* t) {
 					typeError(t, "Return type does not match function declaration");
 				}
 			}
+			leaveScope();
 			break;
 
 		default:
@@ -309,4 +353,5 @@ void typeCheck(ASTNode* syntaxTree) {
 	currentScope        = globalScope;
 	currentFunctionType = NULL;
 	traverse(syntaxTree, nullProc, checkNode);
+	currentScope = globalScope;
 }
