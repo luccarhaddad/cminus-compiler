@@ -343,9 +343,9 @@ soma_expressao:
 
 soma:
     PLUS
-        { $$ = MAP_TOKEN_TO_OP(OP_PLUS); }
+        { $$ = OP_PLUS; }
     | MINUS
-        { $$ = MAP_TOKEN_TO_OP(OP_MINUS); }
+        { $$ = OP_MINUS; }
     ;
 
 termo:
@@ -362,9 +362,9 @@ termo:
 
 mult:
     TIMES
-        { $$ = MAP_TOKEN_TO_OP(OP_TIMES); }
+        { $$ = OP_TIMES; }
     | OVER
-        { $$ = MAP_TOKEN_TO_OP(OP_OVER); }
+        { $$ = OP_OVER; }
     ;
 
 fator:

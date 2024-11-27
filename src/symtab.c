@@ -22,39 +22,35 @@ static unsigned int hash(const char* key) {
 
 Symbol* createSymbol(const char* name, const SymbolKind kind, TypeInfo* type) {
 	Symbol* symbol = malloc(sizeof(Symbol));
-	if (!symbol)
-		return NULL;
+	if (!symbol) return NULL;
 
-	symbol->name = strdup(name);
-	symbol->kind = kind;
-	symbol->type = type;
+	symbol->name   = strdup(name);
+	symbol->kind   = kind;
+	symbol->type   = type;
 	symbol->offset = 0;
-	symbol->next = NULL;
+	symbol->next   = NULL;
 
-	symbol->sourceInfo.definedAt = 0;
-	symbol->sourceInfo.references = (int*)malloc(REF_CAPACITY * sizeof(int));
-	symbol->sourceInfo.refCount = 0;
+	symbol->sourceInfo.definedAt  = 0;
+	symbol->sourceInfo.references = (int*) malloc(REF_CAPACITY * sizeof(int));
+	symbol->sourceInfo.refCount   = 0;
 
 	return symbol;
 }
 
 void addSymbol(Scope* scope, Symbol* symbol) {
-	// printf("Adding symbol: %s to scope: %s\n", symbol->name, scope->name);
 	if (!scope || !symbol) return;
 
 	const unsigned int h = hash(symbol->name);
 
-	if (!scope->symbols)
-		scope->symbols = (Symbol**)calloc(HASH_SIZE, sizeof(Symbol*));
+	if (!scope->symbols) scope->symbols = (Symbol**) calloc(HASH_SIZE, sizeof(Symbol*));
 
 	Symbol* current = scope->symbols[h];
 	while (current) {
-		if (strcmp(current->name, symbol->name) == 0)
-			return;
+		if (strcmp(current->name, symbol->name) == 0) return;
 		current = current->next;
 	}
 
-	symbol->next = scope->symbols[h];
+	symbol->next      = scope->symbols[h];
 	scope->symbols[h] = symbol;
 	scope->symbolCount++;
 }
@@ -82,7 +78,6 @@ bool findReference(Symbol* symbol, const int lineNo) {
 
 	for (int i = 0; i < symbol->sourceInfo.refCount; i++) {
 		if (symbol->sourceInfo.references[i] == lineNo) {
-			printf("Reference found at line %d\n", lineNo);
 			return true;
 		}
 	}
@@ -107,23 +102,22 @@ void addReference(Symbol* symbol, const int lineNo) {
 void destroySymbol(Symbol* symbol) {
 	if (!symbol) return;
 
-	free((void*)symbol->name);
+	free((void*) symbol->name);
 	free(symbol->sourceInfo.references);
 	free(symbol);
 }
 
 Scope* createScope(const char* name, Scope* parent) {
-	Scope* scope = (Scope*)malloc(sizeof(Scope));
-	if (!scope)
-		return NULL;
+	Scope* scope = (Scope*) malloc(sizeof(Scope));
+	if (!scope) return NULL;
 
-	scope->name = strdup(name);
-	scope->parent = parent;
-	scope->level = parent ? parent->level + 1 : 0;
-	scope->symbols = NULL;
+	scope->name        = strdup(name);
+	scope->parent      = parent;
+	scope->level       = parent ? parent->level + 1 : 0;
+	scope->symbols     = NULL;
 	scope->symbolCount = 0;
-	scope->children = NULL;
-	scope->childCount = 0;
+	scope->children    = NULL;
+	scope->childCount  = 0;
 
 	return scope;
 }
@@ -148,13 +142,12 @@ void destroyScope(Scope* scope) {
 		free(scope->symbols);
 	}
 
-	free((void*)scope->name);
+	free((void*) scope->name);
 	free(scope);
 }
 
 static const char* getTypeName(const TypeInfo* type) {
-	if (!type)
-		return "unknown";
+	if (!type) return "unknown";
 	switch (type->baseType) {
 		case TYPE_VOID:
 			return "void";
@@ -182,8 +175,7 @@ static const char* symbolKindToStr(const SymbolKind kind) {
 }
 
 static void printSymbol(Symbol* symbol, const char* scopeName) {
-	if (!symbol)
-		return;
+	if (!symbol) return;
 
 	pc("%-14s ", symbol->name);
 	pc("%-9s ", strcmp(scopeName, "global") == 0 ? "" : scopeName);
@@ -197,8 +189,7 @@ static void printSymbol(Symbol* symbol, const char* scopeName) {
 }
 
 static void printScopeSymbols(Scope* scope, int level) {
-	if (!scope)
-		return;
+	if (!scope) return;
 
 	if (scope->symbols) {
 		for (int i = 0; i < HASH_SIZE; i++) {
@@ -213,14 +204,12 @@ static void printScopeSymbols(Scope* scope, int level) {
 	}
 
 	for (int i = 0; i < scope->childCount; i++) {
-		if (scope->children[i])
-			printScopeSymbols(scope->children[i], level+1);
+		if (scope->children[i]) printScopeSymbols(scope->children[i], level + 1);
 	}
 }
 
 void printSymbolTable(Scope* globalScope) {
-	if (!globalScope)
-		return;
+	if (!globalScope) return;
 
 	pc("\nSymbol table:\n\n");
 	pc("Variable Name  Scope     ID Type  Data Type  Line Numbers\n");
