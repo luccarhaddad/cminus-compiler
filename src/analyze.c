@@ -36,8 +36,8 @@ static void enterScope(const char* name) {
 	if (!globalScope) globalScope = currentScope;
 }
 
-static void leaveScope(void) {
-	if (currentScope) currentScope = currentScope->parent;
+static void leaveScope(ASTNode* t) {
+	if (currentScope && t->kind == NODE_FUNCTION) currentScope = currentScope->parent;
 }
 
 static void typeError(const ASTNode* t, const char* message) {
@@ -117,7 +117,6 @@ static bool checkBinaryOperands(const ASTNode* t, const TypeInfo* expectedType) 
 	return true;
 }
 
-
 static void traverse(ASTNode* t, void (*preProc)(ASTNode*), void (*postProc)(ASTNode*)) {
 	if (t) {
 		preProc(t);
@@ -127,9 +126,7 @@ static void traverse(ASTNode* t, void (*preProc)(ASTNode*), void (*postProc)(AST
 	}
 }
 
-static void nullProc(ASTNode* t) {
-	if (t->kind == SYMBOL_FUNCTION) enterScope(t->data.symbol.name);
-}
+static void nullProc(ASTNode* t) { }
 
 static void insertNode(ASTNode* t) {
 	if (!t || !t->data.symbol.name) return;
@@ -147,7 +144,7 @@ static void insertNode(ASTNode* t) {
 			addSymbol(currentScope, symbol);
 			addReference(symbol, t->lineNo);
 			enterScope(t->data.symbol.name);
-			currentFunctionType = t->data.symbol.type->returnType;
+			currentFunctionType = t->data.symbol.type;
 			break;
 
 		case NODE_VARIABLE:
@@ -188,6 +185,14 @@ static void insertNode(ASTNode* t) {
 			t->data.symbol.type = symbol->type;
 			break;
 
+		case NODE_RETURN:
+			if (t->children[0] && currentFunctionType) {
+				if (!areTypesCompatible(t->children[0]->data.symbol.type, currentFunctionType)) {
+					typeError(t, "Return type does not match function declaration");
+				}
+			}
+		break;
+
 		default:
 			break;
 	}
@@ -199,7 +204,7 @@ void buildSymTab(ASTNode* syntaxTree) {
 	addSymbol(globalScope, createSymbol("input", SYMBOL_FUNCTION, createType(TYPE_INT)));
 	addSymbol(globalScope, createSymbol("output", SYMBOL_FUNCTION, createType(TYPE_VOID)));
 
-	traverse(syntaxTree, insertNode, nullProc);
+	traverse(syntaxTree, insertNode, leaveScope);
 
 	currentScope = globalScope;
 	if (TraceAnalyze) printSymbolTable(globalScope);
@@ -239,28 +244,6 @@ static void checkNode(ASTNode* t) {
 			}
 			break;
 
-		case NODE_FUNCTION:
-			symbol = findSymbol(globalScope, t->data.symbol.name);
-			if (!symbol) {
-				typeError(t, "Function not declared");
-				return;
-			}
-			if (currentScope != globalScope) leaveScope();
-			enterScope(t->data.symbol.name);
-			currentFunctionType = t->data.symbol.type->returnType;
-			addReference(symbol, t->lineNo);
-			break;
-
-		case NODE_IDENTIFIER:
-			symbol = findSymbol(currentScope, t->data.symbol.name);
-			if (!symbol) {
-				typeError(t, "Undeclared identifier");
-				return;
-			}
-			t->data.symbol.type = symbol->type;
-			addReference(symbol, t->lineNo);
-			break;
-
 		case NODE_CALL:
 			symbol = findSymbol(currentScope, t->data.symbol.name);
 			if (!symbol) {
@@ -271,8 +254,6 @@ static void checkNode(ASTNode* t) {
 				typeError(t, "Attempting to call a non-function");
 				return;
 			}
-			t->data.symbol.type = symbol->type;
-			addReference(symbol, t->lineNo);
 			break;
 
 		case NODE_IF:
@@ -324,6 +305,9 @@ static void checkNode(ASTNode* t) {
 								break;
 						}
 						break;
+					case NODE_CALL:
+						rightType = rightNode->data.symbol.type->returnType;
+						break;
 					default:
 						typeError(t, "Invalid right-side expression");
 						break;
@@ -333,15 +317,6 @@ static void checkNode(ASTNode* t) {
 					typeError(t, "Incompatible types in assignment");
 				}
 			}
-			break;
-
-		case NODE_RETURN:
-			if (t->children[0] && currentFunctionType) {
-				if (!areTypesCompatible(t->children[0]->data.symbol.type, currentFunctionType)) {
-					typeError(t, "Return type does not match function declaration");
-				}
-			}
-			leaveScope();
 			break;
 
 		default:

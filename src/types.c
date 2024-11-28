@@ -56,7 +56,7 @@ void addParameter(TypeInfo* functionType, TypeInfo* parameterType) {
 	functionType->parameters.count++;
 }
 
-bool areTypesCompatible(TypeInfo* t1, TypeInfo* t2) {
+bool areTypesCompatible(const TypeInfo* t1, const TypeInfo* t2) {
 	if (!t1 || !t2)
 		return false;
 

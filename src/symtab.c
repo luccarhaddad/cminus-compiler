@@ -58,19 +58,22 @@ void addSymbol(Scope* scope, Symbol* symbol) {
 Symbol* findSymbol(Scope* scope, const char* name) {
 	if (!scope || !name) return NULL;
 
+	Symbol* current = NULL;
 	const unsigned int h = hash(name);
 	while (scope) {
 		if (scope->symbols) {
-			Symbol* current = scope->symbols[h];
+			current = scope->symbols[h];
 			while (current) {
-				if (strcmp(current->name, name) == 0) return current;
+				if (strcmp(current->name, name) == 0) {
+					return current;
+				}
 				current = current->next;
 			}
 		}
 		scope = scope->parent;
 	}
 
-	return NULL;
+	return current;
 }
 
 bool findReference(Symbol* symbol, const int lineNo) {
@@ -216,4 +219,5 @@ void printSymbolTable(Scope* globalScope) {
 	pc("-------------  --------  -------  ---------  -------------------------\n");
 
 	printScopeSymbols(globalScope, 0);
+	pc("\n");
 }
