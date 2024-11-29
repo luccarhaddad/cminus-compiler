@@ -1,9 +1,0 @@
-Declare function (return type "int"): funOne
-    Function call: output
-        Const: 1
-Declare function (return type "int"): funTwo
-    Function call: output
-        Const: 2
-Declare function (return type "int"): funThree
-    Function call: output
-        Const: 3

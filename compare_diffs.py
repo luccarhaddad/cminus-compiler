@@ -14,6 +14,8 @@ for file in  os.listdir("alunodetail"):
                 print("\033[92mOK\033[0m")
             else:
                 print("\033[91mreview me\033[0m")
-                print(coming - going)
+                for line in coming - going:
+                    print(line)
                 print("*************")
-                print(going - coming)
+                for line in going - coming:
+                    print(line)
