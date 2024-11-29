@@ -1,8 +1,7 @@
 #include "symtab.h"
-
+#include "util.h"
 #include <log.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,6 +29,9 @@ Symbol* createSymbol(const char* name, const SymbolKind kind, TypeInfo* type) {
 	symbol->offset = 0;
 	symbol->next   = NULL;
 
+	if (symbol->kind == SYMBOL_FUNCTION)
+		symbol->type->returnType = createType(type->baseType);
+
 	symbol->sourceInfo.definedAt  = 0;
 	symbol->sourceInfo.references = (int*) malloc(REF_CAPACITY * sizeof(int));
 	symbol->sourceInfo.refCount   = 0;
@@ -41,7 +43,6 @@ void addSymbol(Scope* scope, Symbol* symbol) {
 	if (!scope || !symbol) return;
 
 	const unsigned int h = hash(symbol->name);
-
 	if (!scope->symbols) scope->symbols = (Symbol**) calloc(HASH_SIZE, sizeof(Symbol*));
 
 	Symbol* current = scope->symbols[h];
@@ -73,6 +74,26 @@ Symbol* findSymbol(Scope* scope, const char* name) {
 		scope = scope->parent;
 	}
 
+	return current;
+}
+
+Symbol* findGlobalSymbol(Scope* scope, const char* name) {
+	if (!scope || !name) return NULL;
+
+	Symbol* current = NULL;
+	const unsigned int h = hash(name);
+	while (scope) {
+		if (scope->symbols) {
+			current = scope->symbols[h];
+			while (current) {
+				if (strcmp(current->name, name) == 0) {
+					return current;
+				}
+				current = current->next;
+			}
+		}
+		scope = scope->parent;
+	}
 	return current;
 }
 
@@ -162,14 +183,15 @@ static const char* getTypeName(const TypeInfo* type) {
 	}
 }
 
-static const char* symbolKindToStr(const SymbolKind kind) {
-	switch (kind) {
+static const char* symbolKindToStr(const Symbol* symbol) {
+	switch (symbol->kind) {
+		case SYMBOL_PARAMETER:
+			if (symbol->type->arraySize >= 0) return "array";
+			return "var";
 		case SYMBOL_VARIABLE:
 			return "var";
 		case SYMBOL_FUNCTION:
 			return "fun";
-		case SYMBOL_PARAMETER:
-			return "param";
 		case SYMBOL_ARRAY:
 			return "array";
 		default:
@@ -182,11 +204,11 @@ static void printSymbol(Symbol* symbol, const char* scopeName) {
 
 	pc("%-14s ", symbol->name);
 	pc("%-9s ", strcmp(scopeName, "global") == 0 ? "" : scopeName);
-	pc("%-8s ", symbolKindToStr(symbol->kind));
-	pc("%-10s ", getTypeName(symbol->type));
-
+	pc("%-8s ", symbolKindToStr(symbol));
+	pc("%-9s ", getTypeName(symbol->kind != SYMBOL_FUNCTION ? symbol->type : symbol->type->returnType));
+	pc(" ");
 	for (int i = 0; i < symbol->sourceInfo.refCount; i++)
-		pc("%d ", symbol->sourceInfo.references[i]);
+		pc("%2d ", symbol->sourceInfo.references[i]);
 
 	pc("\n");
 }
@@ -211,7 +233,7 @@ static void printScopeSymbols(Scope* scope, int level) {
 	}
 }
 
-void printSymbolTable(Scope* globalScope) {
+void printSymbolTable(Scope* globalScope, bool declaredMain) {
 	if (!globalScope) return;
 
 	pc("\nSymbol table:\n\n");
@@ -219,5 +241,7 @@ void printSymbolTable(Scope* globalScope) {
 	pc("-------------  --------  -------  ---------  -------------------------\n");
 
 	printScopeSymbols(globalScope, 0);
-	pc("\n");
+	if (!declaredMain) {
+		pc("Semantic error: undefined reference to 'main'\n");
+	}
 }

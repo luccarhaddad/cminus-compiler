@@ -8,6 +8,7 @@
 static Scope*    currentScope        = NULL;
 static Scope*    globalScope         = NULL;
 static TypeInfo* currentFunctionType = NULL;
+static bool 	 declaredMain		 = FALSE;
 
 static void enterScope(const char* name) {
 	if (currentScope) {
@@ -41,7 +42,7 @@ static void leaveScope(ASTNode* t) {
 }
 
 static void typeError(const ASTNode* t, const char* message) {
-	pce("Type error at line %d: %s\n", t->lineNo, message);
+	pce("Semantic error at line %d: %s\n", t->lineNo, message);
 	Error = TRUE;
 }
 
@@ -139,7 +140,10 @@ static void insertNode(ASTNode* t) {
 				typeError(t, "Function already declared in this scope");
 				return;
 			}
-			symbol = createSymbol(t->data.symbol.name, SYMBOL_FUNCTION, t->data.symbol.type);
+			if (strcmp(t->data.symbol.name, "main") == 0) {
+				declaredMain = TRUE;
+			}
+			symbol = createSymbol(t->data.symbol.name, SYMBOL_FUNCTION, t->data.symbol.type->returnType);
 			symbol->sourceInfo.definedAt = t->lineNo;
 			addSymbol(currentScope, symbol);
 			addReference(symbol, t->lineNo);
@@ -148,8 +152,20 @@ static void insertNode(ASTNode* t) {
 			break;
 
 		case NODE_VARIABLE:
-			if (findSymbol(currentScope, t->data.symbol.name)) {
-				typeError(t, "Variable already declared in this scope");
+			if ((symbol = findSymbol(currentScope, t->data.symbol.name))) {
+				const char* err[100];
+				if (symbol->kind == SYMBOL_VARIABLE) {
+					sprintf(err, "'%s' was already declared as a variable", t->data.symbol.name);
+					typeError(t, err);
+				}
+				if (symbol->kind == SYMBOL_FUNCTION) {
+					sprintf(err, "'%s' was already declared as a function", t->data.symbol.name);
+					typeError(t, err);
+				}
+				return;
+			}
+			if (t->data.symbol.type->baseType == TYPE_VOID) {
+				typeError(t, "variable declared void");
 				return;
 			}
 			symbol =
@@ -174,10 +190,24 @@ static void insertNode(ASTNode* t) {
 
 		case NODE_IDENTIFIER:
 		case NODE_ASSIGN:
+			symbol = findSymbol(currentScope, t->data.symbol.name);
+			if (!symbol) {
+				const char* err[100];
+				sprintf(err, "'%s' was not declared in this scope", t->data.symbol.name);
+				typeError(t, err);
+				return;
+			}
+			addReference(symbol, t->lineNo);
+			addSymbol(currentScope, symbol);
+			t->data.symbol.type = symbol->type;
+			break;
+
 		case NODE_CALL:
 			symbol = findSymbol(currentScope, t->data.symbol.name);
 			if (!symbol) {
-				typeError(t, "Undeclared identifier");
+				const char* err[100];
+				sprintf(err, "'%s' was not declared in this scope", t->data.symbol.name);
+				typeError(t, err);
 				return;
 			}
 			addReference(symbol, t->lineNo);
@@ -207,7 +237,7 @@ void buildSymTab(ASTNode* syntaxTree) {
 	traverse(syntaxTree, insertNode, leaveScope);
 
 	currentScope = globalScope;
-	if (TraceAnalyze) printSymbolTable(globalScope);
+	if (TraceAnalyze) printSymbolTable(globalScope, declaredMain);
 }
 
 static void checkNode(ASTNode* t) {
@@ -225,8 +255,8 @@ static void checkNode(ASTNode* t) {
 					if (!checkBinaryOperands(t, createType(TYPE_INT))) {
 						typeError(t, "Incompatible types for arithmetic operation");
 					}
-					t->resultType = createType(TYPE_INT);
-					break;
+				t->resultType = createType(TYPE_INT);
+				break;
 				case OP_LT:
 				case OP_GT:
 				case OP_LEQ:
@@ -236,25 +266,25 @@ static void checkNode(ASTNode* t) {
 					if (!checkBinaryOperands(t, createType(TYPE_INT))) {
 						typeError(t, "Incompatible types for relational operation");
 					}
-					t->resultType = createType(TYPE_BOOLEAN);
-					break;
+				t->resultType = createType(TYPE_BOOLEAN);
+				break;
 
 				default:
 					break;
 			}
-			break;
+		break;
 
-		case NODE_CALL:
-			symbol = findSymbol(currentScope, t->data.symbol.name);
-			if (!symbol) {
-				typeError(t, "Undeclared function");
-				return;
-			}
-			if (symbol->kind != SYMBOL_FUNCTION) {
-				typeError(t, "Attempting to call a non-function");
-				return;
-			}
-			break;
+		// case NODE_CALL:
+		// 	symbol = findSymbol(currentScope, t->data.symbol.name);
+		// if (!symbol) {
+		// 	// typeError(t, "Undeclared function");
+		// 	return;
+		// }
+		// if (symbol->kind != SYMBOL_FUNCTION) {
+		// 	typeError(t, "Attempting to call a non-function");
+		// 	return;
+		// }
+		// break;
 
 		case NODE_IF:
 		case NODE_WHILE:
@@ -262,7 +292,7 @@ static void checkNode(ASTNode* t) {
 				if (t->children[0]->resultType->baseType != TYPE_BOOLEAN)
 					typeError(t, "Condition must be a boolean expression");
 			}
-			break;
+		break;
 
 		case NODE_ASSIGN:
 			if (t->children[0] && t->children[1]) {
@@ -274,24 +304,24 @@ static void checkNode(ASTNode* t) {
 				switch (leftNode->kind) {
 					case NODE_CONSTANT:
 						typeError(t, "Cannot assign to a constant");
-						break;
+					break;
 					case NODE_VARIABLE:
 					case NODE_IDENTIFIER:
 						leftType = leftNode->data.symbol.type;
-						break;
+					break;
 					default:
 						typeError(t, "Invalid left-hand side in assignment");
-						break;
+					break;
 				}
 
 				switch (rightNode->kind) {
 					case NODE_CONSTANT:
 						rightType = createType(TYPE_INT);
-						break;
+					break;
 					case NODE_VARIABLE:
 					case NODE_IDENTIFIER:
 						rightType = rightNode->data.symbol.type;
-						break;
+					break;
 					case NODE_OPERATOR:
 						switch (rightNode->data.operator) {
 							case OP_PLUS:
@@ -299,22 +329,31 @@ static void checkNode(ASTNode* t) {
 							case OP_TIMES:
 							case OP_OVER:
 								rightType = createType(rightNode->resultType->baseType);
-								break;
+							break;
 							default:
 								typeError(t, "Invalid right-side operator");
-								break;
+							break;
 						}
-						break;
+					break;
 					case NODE_CALL:
+						if (!rightNode->data.symbol.type) {
+							return;
+						}
 						rightType = rightNode->data.symbol.type->returnType;
-						break;
+					break;
 					default:
 						typeError(t, "Invalid right-side expression");
-						break;
+					break;
 				}
-
-				if (!leftType || !rightType || leftType->baseType != rightType->baseType) {
+				if (!leftType || !rightType)
+					break;
+				if (rightType->baseType == TYPE_VOID) {
+					typeError(t, "invalid use of void expression");
+					break;
+				}
+				if (leftType->baseType != rightType->baseType) {
 					typeError(t, "Incompatible types in assignment");
+					break;
 				}
 			}
 			break;
