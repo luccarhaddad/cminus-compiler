@@ -17,16 +17,16 @@ ASTNode* parse(void);
 #endif
 
 #define MAP_TOKEN_TO_OP(token) \
-    ((token) == OP_PLUS ? PLUS : \
-     (token) == OP_MINUS ? MINUS : \
-     (token) == OP_TIMES ? TIMES : \
-     (token) == OP_OVER ? OVER : \
-     (token) == OP_LT ? LT : \
-     (token) == OP_GT ? GT : \
-     (token) == OP_LEQ ? LEQ : \
-     (token) == OP_GEQ ? GEQ : \
-     (token) == OP_EQ ? EQ : \
-     (token) == OP_NEQ ? NEQ : -1)
+    ((token) == PLUS ? OP_PLUS : \
+     (token) == MINUS ? OP_MINUS : \
+     (token) == TIMES ? OP_TIMES : \
+     (token) == OVER ? OP_OVER : \
+     (token) == LT ? OP_LT : \
+     (token) == GT ? OP_GT : \
+     (token) == LEQ ? OP_LEQ : \
+     (token) == GEQ ? OP_GEQ : \
+     (token) == EQ ? OP_EQ : \
+     (token) == NEQ ? OP_NEQ : -1)
 
 static char* savedName; /* for use in assignments */
 static int savedLineNo;  /* ditto */
@@ -316,18 +316,12 @@ simples_expressao:
     ;
 
 relacional:
-    LEQ
-        { $$ = OP_LEQ; }
-    | LT
-        { $$ = OP_LT; }
-    | GT
-        { $$ = OP_GT; }
-    | GEQ
-        { $$ = OP_GEQ; }
-    | EQ
-        { $$ = OP_EQ; }
-    | NEQ
-        { $$ = OP_NEQ; }
+    LEQ { $$ = MAP_TOKEN_TO_OP(LEQ); }
+    | LT { $$ = MAP_TOKEN_TO_OP(LT); }
+    | GT { $$ = MAP_TOKEN_TO_OP(GT); }
+    | GEQ { $$ = MAP_TOKEN_TO_OP(GEQ); }
+    | EQ { $$ = MAP_TOKEN_TO_OP(EQ); }
+    | NEQ { $$ = MAP_TOKEN_TO_OP(NEQ); }
     ;
 
 soma_expressao:

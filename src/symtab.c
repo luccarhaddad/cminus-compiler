@@ -236,6 +236,6 @@ void printSymbolTable(Scope* globalScope, bool declaredMain) {
 
 	printScopeSymbols(globalScope, 0);
 	if (!declaredMain) {
-		pc("Semantic error: undefined reference to 'main'\n");
+		pce("Semantic error: undefined reference to 'main'\n");
 	}
 }

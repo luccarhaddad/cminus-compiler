@@ -64,16 +64,16 @@ void printToken(const TokenType token, const char* tokenString) {
 		case COMMA:
 			pc(",\n");
 			break;
-		case PLUS:
+		case OP_PLUS:
 			pc("+\n");
 			break;
-		case MINUS:
+		case OP_MINUS:
 			pc("-\n");
 			break;
-		case TIMES:
+		case OP_TIMES:
 			pc("*\n");
 			break;
-		case OVER:
+		case OP_OVER:
 			pc("/\n");
 			break;
 		case ENDFILE:
