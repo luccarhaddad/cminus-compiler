@@ -152,17 +152,21 @@ static void insertNode(ASTNode* t) {
 			break;
 
 		case NODE_VARIABLE:
-			if ((symbol = findSymbol(currentScope, t->data.symbol.name))) {
-				const char* err[100];
+			if ((symbol = findSymbolInScope(currentScope, t->data.symbol.name))) {
 				if (symbol->kind == SYMBOL_VARIABLE) {
+					char* err[100];
 					sprintf(err, "'%s' was already declared as a variable", t->data.symbol.name);
 					typeError(t, err);
+					return;
 				}
+			}
+			if ((symbol = findSymbolInScope(globalScope, t->data.symbol.name))) {
 				if (symbol->kind == SYMBOL_FUNCTION) {
+					char* err[100];
 					sprintf(err, "'%s' was already declared as a function", t->data.symbol.name);
 					typeError(t, err);
+					return;
 				}
-				return;
 			}
 			if (t->data.symbol.type->baseType == TYPE_VOID) {
 				typeError(t, "variable declared void");
@@ -189,19 +193,6 @@ static void insertNode(ASTNode* t) {
 			break;
 
 		case NODE_IDENTIFIER:
-		case NODE_ASSIGN:
-			symbol = findSymbol(currentScope, t->data.symbol.name);
-			if (!symbol) {
-				const char* err[100];
-				sprintf(err, "'%s' was not declared in this scope", t->data.symbol.name);
-				typeError(t, err);
-				return;
-			}
-			addReference(symbol, t->lineNo);
-			addSymbol(currentScope, symbol);
-			t->data.symbol.type = symbol->type;
-			break;
-
 		case NODE_CALL:
 			symbol = findSymbol(currentScope, t->data.symbol.name);
 			if (!symbol) {
@@ -211,7 +202,7 @@ static void insertNode(ASTNode* t) {
 				return;
 			}
 			addReference(symbol, t->lineNo);
-			addSymbol(currentScope, symbol);
+			// addSymbol(currentScope, symbol);
 			t->data.symbol.type = symbol->type;
 			break;
 
@@ -273,18 +264,6 @@ static void checkNode(ASTNode* t) {
 					break;
 			}
 		break;
-
-		// case NODE_CALL:
-		// 	symbol = findSymbol(currentScope, t->data.symbol.name);
-		// if (!symbol) {
-		// 	// typeError(t, "Undeclared function");
-		// 	return;
-		// }
-		// if (symbol->kind != SYMBOL_FUNCTION) {
-		// 	typeError(t, "Attempting to call a non-function");
-		// 	return;
-		// }
-		// break;
 
 		case NODE_IF:
 		case NODE_WHILE:

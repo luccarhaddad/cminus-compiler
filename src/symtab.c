@@ -9,14 +9,12 @@
 #define SHIFT 4
 #define REF_CAPACITY 10
 
-static unsigned int hash(const char* key) {
-	int temp = 0;
-	int i    = 0;
-	while (key[i] != '\0') {
-		temp = ((temp << SHIFT) + key[i]) % HASH_SIZE;
-		++i;
+static unsigned int hash(const char* name) {
+	unsigned int h = 0;
+	while (*name) {
+		h = h * 31 + *name++;
 	}
-	return temp;
+	return h % HASH_SIZE;
 }
 
 Symbol* createSymbol(const char* name, const SymbolKind kind, TypeInfo* type) {
@@ -73,31 +71,27 @@ Symbol* findSymbol(Scope* scope, const char* name) {
 		}
 		scope = scope->parent;
 	}
-
 	return current;
 }
 
-Symbol* findGlobalSymbol(Scope* scope, const char* name) {
+Symbol* findSymbolInScope(Scope* scope, const char* name) {
 	if (!scope || !name) return NULL;
 
 	Symbol* current = NULL;
 	const unsigned int h = hash(name);
-	while (scope) {
-		if (scope->symbols) {
-			current = scope->symbols[h];
-			while (current) {
-				if (strcmp(current->name, name) == 0) {
-					return current;
-				}
-				current = current->next;
+	if (scope->symbols) {
+		current = scope->symbols[h];
+		while (current) {
+			if (strcmp(current->name, name) == 0) {
+				return current;
 			}
+			current = current->next;
 		}
-		scope = scope->parent;
 	}
 	return current;
 }
 
-bool findReference(Symbol* symbol, const int lineNo) {
+static bool findReference(Symbol* symbol, const int lineNo) {
 	if (!symbol) return false;
 
 	for (int i = 0; i < symbol->sourceInfo.refCount; i++) {

@@ -34,7 +34,7 @@ typedef struct Scope {
 Symbol* createSymbol(const char* name, SymbolKind kind, TypeInfo* type);
 void    addSymbol(Scope* scope, Symbol* symbol);
 Symbol* findSymbol(Scope* scope, const char* name);
-// Symbol* findGlobalSymbol(Scope* scope, const char* name);
+Symbol* findSymbolInScope(Scope* scope, const char* name);
 void    addReference(Symbol* symbol, int lineNo);
 void    destroySymbol(Symbol* symbol);
 
