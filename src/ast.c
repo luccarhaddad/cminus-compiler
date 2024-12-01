@@ -4,6 +4,7 @@
 
 #include "ast.h"
 
+#include <globals.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,7 +23,7 @@ ASTNode* createNode(const int kind) {
 	node->next = NULL;
 	node->resultType = NULL;
 	node->symbol = NULL;
-	node->lineNo = 0;
+	node->lineNo = lineno;
 
 	switch (kind) {
 		case NODE_VARIABLE:

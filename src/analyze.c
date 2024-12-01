@@ -1,326 +1,350 @@
-// #include "analyze.h"
-// #include "globals.h"
-// #include "symtab.h"
-//
-// /* Tracks the next available memory location for variables */
-// static int location = 0;
-//
-// /* Keeps track of the current function's return type during analysis */
-// static ExpType currentFunctionType;
-//
-// /*
-//  * Generic tree traversal algorithm that implements the Visitor pattern:
-//  * - Performs a depth-first traversal of the syntax tree
-//  * - Applies preProc function before processing children (preorder)
-//  * - Applies postProc function after processing children (postorder)
-//  * - Handles both child nodes and sibling nodes
-//  *
-//  * @param t The current tree node
-//  * @param preProc Function to execute before processing children
-//  * @param postProc Function to execute after processing children
-//  */
-// static void traverse(TreeNode* t, void (*preProc)(TreeNode*), void (*postProc)(TreeNode*)) {
-// 	if (t != NULL) {
-// 		preProc(t);
-// 		{
-// 			for (int i = 0; i < MAXCHILDREN; i++) traverse(t->child[i], preProc, postProc);
-// 		}
-// 		postProc(t);
-// 		traverse(t->sibling, preProc, postProc);
-// 	}
-// }
-//
-// /*
-//  * Empty procedure used as a placeholder when only preorder or postorder
-//  * traversal is needed
-//  */
-// static void nullProc(TreeNode* t) {
-// }
-//
-// /*
-//  * Handles symbol table insertion based on node type:
-//  * - For variables: Adds them with their scope and type information
-//  * - For functions: Adds function signature and creates new scope
-//  * - For parameters: Adds them to current function's scope
-//  *
-//  * Key features:
-//  * - Prevents duplicate declarations in same scope
-//  * - Tracks array types vs scalar variables
-//  * - Manages function parameters
-//  * - Maintains scope hierarchy
-//  */
-// static void insertNode(TreeNode* t) {
-// 	if (t == NULL || t->attr.name == NULL) return;
-//
-// 	switch (t->nodekind) {
-// 		case StmtK:
-// 			switch (t->kind.stmt) {
-// 				case IfK:
-// 				case WhileK:
-// 				case ReturnK:
-// 					break;
-// 				case AssignK:
-// 					// For assignments, insert variable if not already present
-// 					st_insert(t->attr.name, t->lineno,
-// 					          st_lookup(t->attr.name) == -1 ? location++ : 0, FALSE,
-// 					          t->child[0] == NULL ? FALSE : TRUE, Integer);
-// 					break;
-// 				case FuncK:
-// 					// Function declaration handling
-// 					st_insert(t->attr.name, t->lineno, location, TRUE,
-// 					          t->child[0] == NULL ? FALSE : TRUE, t->type);
-//
-// 					// Count and store number of parameters
-// 					BucketList l = st_bucket_lookup(t->attr.name);
-// 					if (l != NULL) {
-// 						TreeNode* param      = t->child[0];
-// 						int       paramCount = 0;
-// 						while (param != NULL) {
-// 							paramCount++;
-// 							param = param->sibling;
-// 						}
-// 						l->numParams = paramCount;
-// 					}
-//
-// 					enterScope(t->attr.name);
-// 					currentFunctionType = t->type;
-// 					break;
-// 				case ParamK:
-// 				case VarK:
-// 					// Check for duplicate declarations
-// 					if (st_lookup(t->attr.name) != -1) {
-// 						fprintf(stderr, "Variable already declared in this scope");
-// 						break;
-// 					}
-// 					st_insert(t->attr.name, t->lineno, location++, FALSE,
-// 					          t->child[0] == NULL ? FALSE : TRUE, Integer);
-// 					break;
-// 			}
-// 			break;
-// 		case ExpK:
-// 			switch (t->kind.exp) {
-// 				case ConstK:
-// 					t->type = Integer;
-// 					break;
-// 				case IdK:
-// 					st_insert(t->attr.name, t->lineno,
-// 					          st_lookup(t->attr.name) == -1 ? location++ : 0, FALSE,
-// 					          t->child[0] == NULL ? FALSE : TRUE, Integer);
-// 					break;
-// 				case OpK:
-// 				case CallK:
-// 					break;
-// 			}
-// 			break;
-// 		default:
-// 			break;
-// 	}
-// }
-//
-// /*
-//  * Handles scope cleanup when leaving a function definition
-//  */
-// static void leaveScopeProc(TreeNode* t) {
-// 	if (t == NULL) return;
-// 	if (t->nodekind == StmtK && t->kind.stmt == FuncK) {
-// 		leaveScope();
-// 	}
-// }
-//
-// /*
-//  * Main symbol table construction function
-//  * - Creates global scope
-//  * - Builds complete symbol table through tree traversal
-//  * - Optionally prints the symbol table for debugging
-//  */
-// void buildSymtab(TreeNode* syntaxTree) {
-// 	enterScope("global");
-// 	traverse(syntaxTree, insertNode, leaveScopeProc);
-// 	leaveScope();
-// 	if (TraceAnalyze) {
-// 		pc("\nSymbol table:\n\n");
-// 		printSymTab();
-// 	}
-// }
-//
-// /*
-//  * Reports type errors with line numbers for better debugging
-//  */
-// static void typeError(TreeNode* t, char* message) {
-// 	pce("Semantic error at line %d: %s\n", t->lineno, message);
-// 	Error = TRUE;
-// }
-//
-// /*
-//  * Verifies that binary operations have compatible operand types
-//  */
-// static void checkBinaryOperands(TreeNode* t, ExpType expectedType) {
-// 	if (t->child[0] == NULL || t->child[1] == NULL) {
-// 		typeError(t, "Binary operator requires two operands");
-// 		return;
-// 	}
-// 	if (t->child[0]->type != expectedType) {
-// 		typeError(t->child[0], "Operator applied to incompatible type");
-// 	}
-// 	if (t->child[1]->type != expectedType) {
-// 		typeError(t->child[1], "Operator applied to incompatible type");
-// 	}
-// }
-//
-// /*
-//  * Main type checking function that validates:
-//  * - Operator type compatibility
-//  * - Variable declarations
-//  * - Function calls and parameter counts
-//  * - Control structure conditions
-//  * - Assignment compatibility
-//  */
-// static void checkNode(TreeNode* t) {
-// 	switch (t->nodekind) {
-// 		case ExpK:
-// 			switch (t->kind.exp) {
-// 				case OpK:
-// 					switch (t->attr.op) {
-// 						case PLUS:
-// 						case MINUS:
-// 						case TIMES:
-// 						case OVER:
-// 							checkBinaryOperands(t, Integer);
-// 							t->type = Integer;
-// 							break;
-// 						case EQ:
-// 						case NEQ:
-// 						case LEQ:
-// 						case LT:
-// 						case GEQ:
-// 						case GT:
-// 							checkBinaryOperands(t, Integer);
-// 							t->type = Boolean;
-// 							break;
-// 						default:
-// 							typeError(t, "Unknown operator");
-// 							break;
-// 					}
-// 					break;
-// 				case ConstK:
-// 					t->type = Integer;
-// 					break;
-// 				case IdK:
-// 					location = st_lookup(t->attr.name);
-// 					if (location == -1) typeError(t, "Undeclared variable");
-// 					t->type = Integer;
-// 					break;
-// 				case CallK:
-// 					location = st_lookup(t->attr.name);
-// 					if (location == -1) {
-// 						typeError(t, "Undeclared function");
-// 						break;
-// 					}
-//
-// 					BucketList funcEntry = hashTable[location];
-// 					if (funcEntry == NULL) {
-// 						typeError(t, "Function not found");
-// 						break;
-// 					}
-//
-// 					// Find the correct function entry
-// 					while (funcEntry != NULL && strcmp(funcEntry->name, t->attr.name) != 0)
-// 						funcEntry = funcEntry->next;
-//
-// 					if (funcEntry == NULL) {
-// 						typeError(t, "Identifier is not a function");
-// 						break;
-// 					}
-//
-// 					if (!funcEntry->isFunction) {
-// 						typeError(t, "Identifier is not a function");
-// 						break;
-// 					}
-//
-// 					// Validate parameter count
-// 					int       argCount = 0;
-// 					TreeNode* arg      = t->child[0];
-// 					while (arg != NULL) {
-// 						argCount++;
-// 						arg = arg->sibling;
-// 					}
-//
-// 					if (argCount != funcEntry->numParams) {
-// 						char errorMsg[100];
-// 						sprintf(errorMsg, "Incorrect number of arguments: expected %d, received %d",
-// 						        funcEntry->numParams, argCount);
-// 						typeError(t, errorMsg);
-// 						break;
-// 					}
-//
-// 					t->type = funcEntry->returnType;
-// 					break;
-// 				default:
-// 					break;
-// 			}
-// 			break;
-// 		case StmtK:
-// 			switch (t->kind.stmt) {
-// 				case IfK:
-// 					if (t->child[0]->type != Boolean)
-// 						typeError(t->child[0], "Conditional operator is not boolean");
-// 					break;
-// 				case WhileK:
-// 					if (t->child[0] == NULL) {
-// 						typeError(t->child[0], "While operator must have a condition");
-// 						break;
-// 					}
-// 					if (t->child[0]->type != Boolean) {
-// 						typeError(t->child[0], "Conditional operator is not boolean");
-// 						break;
-// 					}
-// 					break;
-// 				case ReturnK:
-// 					// Note: Return statement validation is incomplete
-// 					break;
-// 				case AssignK:
-// 					location = st_lookup(t->child[0]->attr.name);
-// 					if (location == -1) {
-// 						typeError(t->child[0], "Undeclared variable");
-// 						break;
-// 					}
-//
-// 					BucketList varEntry = hashTable[location];
-// 					while (varEntry != NULL && strcmp(varEntry->name, t->child[0]->attr.name) != 0)
-// 						varEntry = varEntry->next;
-//
-// 					if (varEntry == NULL) {
-// 						typeError(t->child[0], "Undeclared variable");
-// 						break;
-// 					}
-//
-// 					if (varEntry->isFunction) {
-// 						typeError(t->child[0], "Cannot assign value to a function");
-// 						break;
-// 					}
-//
-// 					if (t->child[1]->type != varEntry->type) {
-// 						typeError(t, "Incompatible types in assignment");
-// 						break;
-// 					}
-// 					break;
-// 				case ParamK:
-// 				case VarK:
-// 				case FuncK:
-// 					break;
-// 				default:
-// 					break;
-// 			}
-// 			break;
-// 		default:
-// 			break;
-// 	}
-// }
-//
-// /*
-//  * Main type checking entry point
-//  * Traverses the entire syntax tree to validate types
-//  */
-// void typeCheck(TreeNode* syntaxTree) {
-// 	traverse(syntaxTree, nullProc, checkNode);
-// }
+#include "analyze.h"
+#include "globals.h"
+#include "symtab.h"
+#include <log.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+static Scope*    currentScope        = NULL;
+static Scope*    globalScope         = NULL;
+static TypeInfo* currentFunctionType = NULL;
+static bool 	 declaredMain		 = FALSE;
+
+static void enterScope(const char* name) {
+	if (currentScope) {
+		for (int i = 0; i < currentScope->childCount; i++) {
+			if (strcmp(currentScope->children[i]->name, name) == 0) {
+				currentScope = currentScope->children[i];
+				return;
+			}
+		}
+	}
+
+	Scope* newScope = createScope(name, currentScope);
+
+	if (currentScope) {
+		if (!currentScope->children) {
+			currentScope->children   = (Scope**) malloc(sizeof(Scope*));
+			currentScope->childCount = 0;
+		} else {
+			currentScope->children = (Scope**) realloc(
+			    currentScope->children, sizeof(Scope*) * (currentScope->childCount + 1));
+		}
+		currentScope->children[currentScope->childCount++] = newScope;
+	}
+
+	currentScope = newScope;
+	if (!globalScope) globalScope = currentScope;
+}
+
+static void leaveScope(ASTNode* t) {
+	if (currentScope && t->kind == NODE_FUNCTION) currentScope = currentScope->parent;
+}
+
+static void typeError(const ASTNode* t, const char* message) {
+	pce("Semantic error at line %d: %s\n", t->lineNo, message);
+	Error = TRUE;
+}
+
+static bool checkBinaryOperands(const ASTNode* t, const TypeInfo* expectedType) {
+	if (!t || !expectedType) return false;
+
+	const ASTNode* leftNode = t->children[0];
+	if (!leftNode) {
+		typeError(t, "Missing left operand");
+		return false;
+	}
+
+	TypeInfo* leftType = NULL;
+	switch (leftNode->kind) {
+		case NODE_VARIABLE:
+		case NODE_IDENTIFIER:
+			leftType = leftNode->data.symbol.type;
+		break;
+		case NODE_CONSTANT:
+			leftType = createType(TYPE_INT);
+		break;
+		case NODE_OPERATOR:
+			leftType = createType(leftNode->resultType->baseType);
+			break;
+		default:
+			typeError(t, "Invalid left operand type");
+		return false;
+	}
+
+	if (!leftType) {
+		typeError(t, "Left operand has no type information");
+		return false;
+	}
+
+	if (!areTypesCompatible(leftType, expectedType)) {
+		typeError(t, "Left operand type does not match expected type");
+		return false;
+	}
+
+	const ASTNode* rightNode = t->children[1];
+	if (!rightNode) {
+		typeError(t, "Missing right operand");
+		return false;
+	}
+
+	TypeInfo* rightType = NULL;
+	switch (rightNode->kind) {
+		case NODE_VARIABLE:
+		case NODE_IDENTIFIER:
+			rightType = rightNode->data.symbol.type;
+		break;
+		case NODE_CONSTANT:
+			rightType = createType(TYPE_INT);
+		break;
+		case NODE_OPERATOR:
+			rightType = createType(rightNode->resultType->baseType);
+		break;
+		default:
+			typeError(t, "Invalid right operand type");
+		return false;
+	}
+
+	if (!rightType) {
+		typeError(t, "Right operand has no type information");
+		return false;
+	}
+
+	if (!areTypesCompatible(rightType, expectedType)) {
+		typeError(t, "Right operand type does not match expected type");
+		return false;
+	}
+
+	return true;
+}
+
+static void traverse(ASTNode* t, void (*preProc)(ASTNode*), void (*postProc)(ASTNode*)) {
+	if (t) {
+		preProc(t);
+		for (int i = 0; i < MAXCHILDREN; i++) traverse(t->children[i], preProc, postProc);
+		postProc(t);
+		traverse(t->next, preProc, postProc);
+	}
+}
+
+static void nullProc(ASTNode* t) { }
+
+static void insertNode(ASTNode* t) {
+	if (!t || !t->data.symbol.name) return;
+
+	Symbol* symbol = NULL;
+
+	switch (t->kind) {
+		case NODE_FUNCTION:
+			if (findSymbol(currentScope, t->data.symbol.name)) {
+				typeError(t, "Function already declared in this scope");
+				return;
+			}
+			if (strcmp(t->data.symbol.name, "main") == 0) {
+				declaredMain = TRUE;
+			}
+			symbol = createSymbol(t->data.symbol.name, SYMBOL_FUNCTION, t->data.symbol.type->returnType);
+			symbol->sourceInfo.definedAt = t->lineNo;
+			addSymbol(currentScope, symbol);
+			addReference(symbol, t->lineNo);
+			enterScope(t->data.symbol.name);
+			currentFunctionType = t->data.symbol.type;
+			break;
+
+		case NODE_VARIABLE:
+			if ((symbol = findSymbolInScope(currentScope, t->data.symbol.name))) {
+				if (symbol->kind == SYMBOL_VARIABLE) {
+					char* err[100];
+					sprintf(err, "'%s' was already declared as a variable", t->data.symbol.name);
+					typeError(t, err);
+					return;
+				}
+			}
+			if ((symbol = findSymbolInScope(globalScope, t->data.symbol.name))) {
+				if (symbol->kind == SYMBOL_FUNCTION) {
+					char* err[100];
+					sprintf(err, "'%s' was already declared as a function", t->data.symbol.name);
+					typeError(t, err);
+					return;
+				}
+			}
+			if (t->data.symbol.type->baseType == TYPE_VOID) {
+				typeError(t, "variable declared void");
+				return;
+			}
+			symbol =
+			    createSymbol(t->data.symbol.name,
+			                 t->data.symbol.type->arraySize >= 0 ? SYMBOL_ARRAY : SYMBOL_VARIABLE,
+			                 t->data.symbol.type);
+			symbol->sourceInfo.definedAt = t->lineNo;
+			addSymbol(currentScope, symbol);
+			addReference(symbol, t->lineNo);
+			break;
+
+		case NODE_PARAM:
+			if (!currentScope->parent) {
+				typeError(t, "Parameters should belong to a function scope");
+				return;
+			}
+			symbol = createSymbol(t->data.symbol.name, SYMBOL_PARAMETER, t->data.symbol.type);
+			symbol->sourceInfo.definedAt = t->lineNo;
+			addSymbol(currentScope, symbol);
+			addReference(symbol, t->lineNo);
+			break;
+
+		case NODE_IDENTIFIER:
+		case NODE_CALL:
+			symbol = findSymbol(currentScope, t->data.symbol.name);
+			if (!symbol) {
+				const char* err[100];
+				sprintf(err, "'%s' was not declared in this scope", t->data.symbol.name);
+				typeError(t, err);
+				return;
+			}
+			addReference(symbol, t->lineNo);
+			// addSymbol(currentScope, symbol);
+			t->data.symbol.type = symbol->type;
+			break;
+
+		case NODE_RETURN:
+			if (t->children[0] && currentFunctionType) {
+				if (!areTypesCompatible(t->children[0]->data.symbol.type, currentFunctionType)) {
+					typeError(t, "Return type does not match function declaration");
+				}
+			}
+		break;
+
+		default:
+			break;
+	}
+}
+
+void buildSymTab(ASTNode* syntaxTree) {
+	globalScope  = createScope("global", NULL);
+	currentScope = globalScope;
+	addSymbol(globalScope, createSymbol("input", SYMBOL_FUNCTION, createType(TYPE_INT)));
+	addSymbol(globalScope, createSymbol("output", SYMBOL_FUNCTION, createType(TYPE_VOID)));
+
+	traverse(syntaxTree, insertNode, leaveScope);
+
+	currentScope = globalScope;
+	if (TraceAnalyze) printSymbolTable(globalScope, declaredMain);
+}
+
+static void checkNode(ASTNode* t) {
+	if (!t) return;
+
+	Symbol* symbol = NULL;
+
+	switch (t->kind) {
+		case NODE_OPERATOR:
+			switch (t->data.operator) {
+				case OP_PLUS:
+				case OP_MINUS:
+				case OP_TIMES:
+				case OP_OVER:
+					if (!checkBinaryOperands(t, createType(TYPE_INT))) {
+						typeError(t, "Incompatible types for arithmetic operation");
+					}
+				t->resultType = createType(TYPE_INT);
+				break;
+				case OP_LT:
+				case OP_GT:
+				case OP_LEQ:
+				case OP_GEQ:
+				case OP_EQ:
+				case OP_NEQ:
+					if (!checkBinaryOperands(t, createType(TYPE_INT))) {
+						typeError(t, "Incompatible types for relational operation");
+					}
+				t->resultType = createType(TYPE_BOOLEAN);
+				break;
+
+				default:
+					break;
+			}
+		break;
+
+		case NODE_IF:
+		case NODE_WHILE:
+			if (t->children[0]) {
+				if (t->children[0]->resultType->baseType != TYPE_BOOLEAN)
+					typeError(t, "Condition must be a boolean expression");
+			}
+		break;
+
+		case NODE_ASSIGN:
+			if (t->children[0] && t->children[1]) {
+				const ASTNode* leftNode  = t->children[0];
+				const ASTNode* rightNode = t->children[1];
+
+				const TypeInfo* leftType  = NULL;
+				const TypeInfo* rightType = NULL;
+				switch (leftNode->kind) {
+					case NODE_CONSTANT:
+						typeError(t, "Cannot assign to a constant");
+					break;
+					case NODE_VARIABLE:
+					case NODE_IDENTIFIER:
+						leftType = leftNode->data.symbol.type;
+					break;
+					default:
+						typeError(t, "Invalid left-hand side in assignment");
+					break;
+				}
+
+				switch (rightNode->kind) {
+					case NODE_CONSTANT:
+						rightType = createType(TYPE_INT);
+					break;
+					case NODE_VARIABLE:
+					case NODE_IDENTIFIER:
+						rightType = rightNode->data.symbol.type;
+					break;
+					case NODE_OPERATOR:
+						switch (rightNode->data.operator) {
+							case OP_PLUS:
+							case OP_MINUS:
+							case OP_TIMES:
+							case OP_OVER:
+								rightType = createType(rightNode->resultType->baseType);
+							break;
+							default:
+								typeError(t, "Invalid right-side operator");
+							break;
+						}
+					break;
+					case NODE_CALL:
+						if (!rightNode->data.symbol.type) {
+							return;
+						}
+						rightType = rightNode->data.symbol.type->returnType;
+					break;
+					default:
+						typeError(t, "Invalid right-side expression");
+					break;
+				}
+				if (!leftType || !rightType)
+					break;
+				if (rightType->baseType == TYPE_VOID) {
+					typeError(t, "invalid use of void expression");
+					break;
+				}
+				if (leftType->baseType != rightType->baseType) {
+					typeError(t, "Incompatible types in assignment");
+					break;
+				}
+			}
+			break;
+
+		default:
+			break;
+	}
+}
+
+void typeCheck(ASTNode* syntaxTree) {
+	currentScope        = globalScope;
+	currentFunctionType = NULL;
+	traverse(syntaxTree, nullProc, checkNode);
+	currentScope = globalScope;
+}

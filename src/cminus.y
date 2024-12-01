@@ -16,18 +16,6 @@ ASTNode* parse(void);
 
 #endif
 
-#define MAP_TOKEN_TO_OP(token) \
-    ((token) == OP_PLUS ? PLUS : \
-     (token) == OP_MINUS ? MINUS : \
-     (token) == OP_TIMES ? TIMES : \
-     (token) == OP_OVER ? OVER : \
-     (token) == OP_LT ? LT : \
-     (token) == OP_GT ? GT : \
-     (token) == OP_LEQ ? LEQ : \
-     (token) == OP_GEQ ? GEQ : \
-     (token) == OP_EQ ? EQ : \
-     (token) == OP_NEQ ? NEQ : -1)
-
 static char* savedName; /* for use in assignments */
 static int savedLineNo;  /* ditto */
 static ASTNode* savedTree; /* stores syntax tree for later return */
@@ -124,13 +112,14 @@ tipo_especificador:
     ;
 
 fun_declaracao:
-    tipo_especificador ID LPAREN params RPAREN composto_decl
+    tipo_especificador ID { savedLineNo = lineno; } LPAREN params RPAREN composto_decl
         {
             $$ = createNode(NODE_FUNCTION);
             $$->data.symbol.name = $2;
+            $$->lineNo = savedLineNo;
             $$->data.symbol.type = createFunctionType(createType($1));
-            $$->children[0] = $4; // Parameters
-            $$->children[1] = $6; // Function body
+            $$->children[0] = $5; // Parameters
+            $$->children[1] = $7; // Function body
         }
     ;
 
@@ -315,18 +304,12 @@ simples_expressao:
     ;
 
 relacional:
-    LEQ
-        { $$ = OP_LEQ; }
-    | LT
-        { $$ = OP_LT; }
-    | GT
-        { $$ = OP_GT; }
-    | GEQ
-        { $$ = OP_GEQ; }
-    | EQ
-        { $$ = OP_EQ; }
-    | NEQ
-        { $$ = OP_NEQ; }
+    LEQ { $$ = OP_LEQ; }
+    | LT { $$ = OP_LT; }
+    | GT { $$ = OP_GT; }
+    | GEQ { $$ = OP_GEQ; }
+    | EQ { $$ = OP_EQ; }
+    | NEQ { $$ = OP_NEQ; }
     ;
 
 soma_expressao:
@@ -343,9 +326,9 @@ soma_expressao:
 
 soma:
     PLUS
-        { $$ = MAP_TOKEN_TO_OP(OP_PLUS); }
+        { $$ = OP_PLUS; }
     | MINUS
-        { $$ = MAP_TOKEN_TO_OP(OP_MINUS); }
+        { $$ = OP_MINUS; }
     ;
 
 termo:
@@ -362,9 +345,9 @@ termo:
 
 mult:
     TIMES
-        { $$ = MAP_TOKEN_TO_OP(OP_TIMES); }
+        { $$ = OP_TIMES; }
     | OVER
-        { $$ = MAP_TOKEN_TO_OP(OP_OVER); }
+        { $$ = OP_OVER; }
     ;
 
 fator:

@@ -64,16 +64,16 @@ void printToken(const TokenType token, const char* tokenString) {
 		case COMMA:
 			pc(",\n");
 			break;
-		case PLUS:
+		case OP_PLUS:
 			pc("+\n");
 			break;
-		case MINUS:
+		case OP_MINUS:
 			pc("-\n");
 			break;
-		case TIMES:
+		case OP_TIMES:
 			pc("*\n");
 			break;
-		case OVER:
+		case OP_OVER:
 			pc("/\n");
 			break;
 		case ENDFILE:
@@ -144,6 +144,7 @@ static void printSpaces(void) {
 	for (int i = 0; i < indentno; i++)
 		pc(" ");
 }
+
 /* Procedure printLine prints a full line
  * of the source code, with its number
  * reduntand_source is ANOTHER instance
@@ -187,7 +188,7 @@ const char* ExpTypeToString(const TypeInfo* type) {
 /* procedure printTree prints a syntax tree to the
  * listing file using indentation to indicate subtrees
  */
-void printTree(ASTNode* tree) {
+void printTree(const ASTNode* tree) {
 	while (tree != NULL) {
 		printSpaces();
 

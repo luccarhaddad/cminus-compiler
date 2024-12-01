@@ -3,10 +3,10 @@
 //
 
 #include "types.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-TypeInfo* createType(Type baseType) {
+TypeInfo* createType(const Type baseType) {
 	TypeInfo* type = (TypeInfo*)malloc(sizeof(TypeInfo));
 
 	if(!type) {
@@ -23,10 +23,10 @@ TypeInfo* createType(Type baseType) {
 	return type;
 }
 
-TypeInfo* createArrayType(Type baseType, int arraySize) {
+TypeInfo* createArrayType(const Type baseType, const int size) {
 	TypeInfo* type = createType(baseType);
 	if(type) {
-		type->arraySize = arraySize;
+		type->arraySize = size;
 	}
 	return type;
 }
@@ -56,30 +56,30 @@ void addParameter(TypeInfo* functionType, TypeInfo* parameterType) {
 	functionType->parameters.count++;
 }
 
-int areTypesCompatible(TypeInfo* t1, TypeInfo* t2) {
+bool areTypesCompatible(const TypeInfo* t1, const TypeInfo* t2) {
 	if (!t1 || !t2)
-		return 0;
+		return false;
 
 	if (t1->baseType != t2->baseType)
-		return 0;
+		return false;
 
 	if (t1->baseType == TYPE_ARRAY && t1->arraySize != t2->arraySize)
-		return 0;
+		return false;
 
 	if (t1->returnType && t2->returnType) {
 		if (!areTypesCompatible(t1->returnType, t2->returnType))
-			return 0;
+			return false;
 	}
 
 	if (t1->parameters.count != t2->parameters.count)
-		return 0;
+		return false;
 
 	for (int i = 0; i < t1->parameters.count; i++) {
 		if (!areTypesCompatible(t1->parameters.types[i], t2->parameters.types[i]))
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 void destroyType(TypeInfo* type) {

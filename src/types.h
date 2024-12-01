@@ -4,6 +4,7 @@
 
 #ifndef TYPES_H
 #define TYPES_H
+#include <stdbool.h>
 
 typedef enum { TYPE_VOID, TYPE_INT, TYPE_BOOLEAN, TYPE_ARRAY } Type;
 
@@ -20,7 +21,7 @@ typedef struct TypeInfo {
 TypeInfo* createType(Type baseType);
 TypeInfo* createArrayType(Type baseType, int size);
 TypeInfo* createFunctionType(TypeInfo* returnType);
-int       areTypesCompatible(TypeInfo* t1, TypeInfo* t2);
+bool areTypesCompatible(const TypeInfo* t1, const TypeInfo* t2);
 void      addParameter(TypeInfo* functionType, TypeInfo* paramType);
 void      destroyType(TypeInfo* type);
 
