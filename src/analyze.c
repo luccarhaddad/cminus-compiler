@@ -127,7 +127,11 @@ static void traverse(ASTNode* t, void (*preProc)(ASTNode*), void (*postProc)(AST
 	}
 }
 
-static void nullProc(ASTNode* t) { }
+static void nullProc(ASTNode* t) {
+	if (t->kind == NODE_FUNCTION) {
+		currentFunctionType = t->data.symbol.type->returnType;
+	}
+}
 
 static void insertNode(ASTNode* t) {
 	if (!t || !t->data.symbol.name) return;
@@ -202,17 +206,8 @@ static void insertNode(ASTNode* t) {
 				return;
 			}
 			addReference(symbol, t->lineNo);
-			// addSymbol(currentScope, symbol);
 			t->data.symbol.type = symbol->type;
 			break;
-
-		case NODE_RETURN:
-			if (t->children[0] && currentFunctionType) {
-				if (!areTypesCompatible(t->children[0]->data.symbol.type, currentFunctionType)) {
-					typeError(t, "Return type does not match function declaration");
-				}
-			}
-		break;
 
 		default:
 			break;
@@ -233,8 +228,6 @@ void buildSymTab(ASTNode* syntaxTree) {
 
 static void checkNode(ASTNode* t) {
 	if (!t) return;
-
-	Symbol* symbol = NULL;
 
 	switch (t->kind) {
 		case NODE_OPERATOR:
@@ -336,6 +329,20 @@ static void checkNode(ASTNode* t) {
 				}
 			}
 			break;
+
+		case NODE_RETURN:
+			if (currentFunctionType) {
+				if (!t->children[0] && currentFunctionType->baseType != TYPE_VOID) {
+					char* err[100];
+					sprintf(err, "Function of type %s missing return value", currentFunctionType->baseType == TYPE_INT ? "int" : "void");
+					typeError(t, err);
+					break;
+				}
+				if (t->children[0] && currentFunctionType->baseType != TYPE_INT) {
+					typeError(t, "Return statement with return value in void function");
+				}
+			}
+		break;
 
 		default:
 			break;
