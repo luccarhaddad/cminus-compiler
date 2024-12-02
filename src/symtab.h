@@ -21,13 +21,13 @@ typedef struct Symbol {
 } Symbol;
 
 typedef struct Scope {
-	const char*   	name;
-	struct Scope*   parent;
-	struct Scope**	children;    // Child scopes
-	int             childCount;
-	int             level;       // Nesting level
-	Symbol**      	symbols;     // Hash table of symbols
-	int           	symbolCount; // Number of symbols in this scope
+	const char*    name;
+	struct Scope*  parent;
+	struct Scope** children; // Child scopes
+	int            childCount;
+	int            level;       // Nesting level
+	Symbol**       symbols;     // Hash table of symbols
+	int            symbolCount; // Number of symbols in this scope
 } Scope;
 
 /* Symbol table functions */

@@ -1,6 +1,8 @@
 #include "analyze.h"
 #include "globals.h"
 #include "symtab.h"
+#include "util.h"
+
 #include <log.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -8,7 +10,8 @@
 static Scope*    currentScope        = NULL;
 static Scope*    globalScope         = NULL;
 static TypeInfo* currentFunctionType = NULL;
-static bool 	 declaredMain		 = FALSE;
+static bool      declaredMain        = FALSE;
+static bool      functionDeclared    = FALSE;
 
 static void enterScope(const char* name) {
 	if (currentScope) {
@@ -39,6 +42,9 @@ static void enterScope(const char* name) {
 
 static void leaveScope(ASTNode* t) {
 	if (currentScope && t->kind == NODE_FUNCTION) currentScope = currentScope->parent;
+	if (currentScope && currentScope->parent &&
+	    strcmp(currentScope->name, currentScope->parent->name) == 0 && t->kind == NODE_BLOCK)
+		currentScope = currentScope->parent;
 }
 
 static void typeError(const ASTNode* t, const char* message) {
@@ -60,16 +66,16 @@ static bool checkBinaryOperands(const ASTNode* t, const TypeInfo* expectedType) 
 		case NODE_VARIABLE:
 		case NODE_IDENTIFIER:
 			leftType = leftNode->data.symbol.type;
-		break;
+			break;
 		case NODE_CONSTANT:
 			leftType = createType(TYPE_INT);
-		break;
+			break;
 		case NODE_OPERATOR:
 			leftType = createType(leftNode->resultType->baseType);
 			break;
 		default:
 			typeError(t, "Invalid left operand type");
-		return false;
+			return false;
 	}
 
 	if (!leftType) {
@@ -93,16 +99,16 @@ static bool checkBinaryOperands(const ASTNode* t, const TypeInfo* expectedType) 
 		case NODE_VARIABLE:
 		case NODE_IDENTIFIER:
 			rightType = rightNode->data.symbol.type;
-		break;
+			break;
 		case NODE_CONSTANT:
 			rightType = createType(TYPE_INT);
-		break;
+			break;
 		case NODE_OPERATOR:
 			rightType = createType(rightNode->resultType->baseType);
-		break;
+			break;
 		default:
 			typeError(t, "Invalid right operand type");
-		return false;
+			return false;
 	}
 
 	if (!rightType) {
@@ -139,6 +145,14 @@ static void insertNode(ASTNode* t) {
 	Symbol* symbol = NULL;
 
 	switch (t->kind) {
+		case NODE_BLOCK:
+			if (!functionDeclared) {
+				enterScope(t->data.symbol.name);
+			} else {
+				functionDeclared = FALSE;
+			}
+			break;
+
 		case NODE_FUNCTION:
 			if (findSymbol(currentScope, t->data.symbol.name)) {
 				typeError(t, "Function already declared in this scope");
@@ -147,18 +161,20 @@ static void insertNode(ASTNode* t) {
 			if (strcmp(t->data.symbol.name, "main") == 0) {
 				declaredMain = TRUE;
 			}
-			symbol = createSymbol(t->data.symbol.name, SYMBOL_FUNCTION, t->data.symbol.type->returnType);
+			symbol =
+			    createSymbol(t->data.symbol.name, SYMBOL_FUNCTION, t->data.symbol.type->returnType);
 			symbol->sourceInfo.definedAt = t->lineNo;
 			addSymbol(currentScope, symbol);
 			addReference(symbol, t->lineNo);
-			enterScope(t->data.symbol.name);
 			currentFunctionType = t->data.symbol.type;
+			enterScope(t->data.symbol.name);
+			functionDeclared = TRUE;
 			break;
 
 		case NODE_VARIABLE:
 			if ((symbol = findSymbolInScope(currentScope, t->data.symbol.name))) {
 				if (symbol->kind == SYMBOL_VARIABLE) {
-					char* err[100];
+					char err[100];
 					sprintf(err, "'%s' was already declared as a variable", t->data.symbol.name);
 					typeError(t, err);
 					return;
@@ -166,7 +182,7 @@ static void insertNode(ASTNode* t) {
 			}
 			if ((symbol = findSymbolInScope(globalScope, t->data.symbol.name))) {
 				if (symbol->kind == SYMBOL_FUNCTION) {
-					char* err[100];
+					char err[100];
 					sprintf(err, "'%s' was already declared as a function", t->data.symbol.name);
 					typeError(t, err);
 					return;
@@ -200,7 +216,7 @@ static void insertNode(ASTNode* t) {
 		case NODE_CALL:
 			symbol = findSymbol(currentScope, t->data.symbol.name);
 			if (!symbol) {
-				const char* err[100];
+				const char err[100];
 				sprintf(err, "'%s' was not declared in this scope", t->data.symbol.name);
 				typeError(t, err);
 				return;
@@ -239,8 +255,8 @@ static void checkNode(ASTNode* t) {
 					if (!checkBinaryOperands(t, createType(TYPE_INT))) {
 						typeError(t, "Incompatible types for arithmetic operation");
 					}
-				t->resultType = createType(TYPE_INT);
-				break;
+					t->resultType = createType(TYPE_INT);
+					break;
 				case OP_LT:
 				case OP_GT:
 				case OP_LEQ:
@@ -250,13 +266,13 @@ static void checkNode(ASTNode* t) {
 					if (!checkBinaryOperands(t, createType(TYPE_INT))) {
 						typeError(t, "Incompatible types for relational operation");
 					}
-				t->resultType = createType(TYPE_BOOLEAN);
-				break;
+					t->resultType = createType(TYPE_BOOLEAN);
+					break;
 
 				default:
 					break;
 			}
-		break;
+			break;
 
 		case NODE_IF:
 		case NODE_WHILE:
@@ -264,7 +280,7 @@ static void checkNode(ASTNode* t) {
 				if (t->children[0]->resultType->baseType != TYPE_BOOLEAN)
 					typeError(t, "Condition must be a boolean expression");
 			}
-		break;
+			break;
 
 		case NODE_ASSIGN:
 			if (t->children[0] && t->children[1]) {
@@ -276,24 +292,24 @@ static void checkNode(ASTNode* t) {
 				switch (leftNode->kind) {
 					case NODE_CONSTANT:
 						typeError(t, "Cannot assign to a constant");
-					break;
+						break;
 					case NODE_VARIABLE:
 					case NODE_IDENTIFIER:
 						leftType = leftNode->data.symbol.type;
-					break;
+						break;
 					default:
 						typeError(t, "Invalid left-hand side in assignment");
-					break;
+						break;
 				}
 
 				switch (rightNode->kind) {
 					case NODE_CONSTANT:
 						rightType = createType(TYPE_INT);
-					break;
+						break;
 					case NODE_VARIABLE:
 					case NODE_IDENTIFIER:
 						rightType = rightNode->data.symbol.type;
-					break;
+						break;
 					case NODE_OPERATOR:
 						switch (rightNode->data.operator) {
 							case OP_PLUS:
@@ -301,24 +317,23 @@ static void checkNode(ASTNode* t) {
 							case OP_TIMES:
 							case OP_OVER:
 								rightType = createType(rightNode->resultType->baseType);
-							break;
+								break;
 							default:
 								typeError(t, "Invalid right-side operator");
-							break;
+								break;
 						}
-					break;
+						break;
 					case NODE_CALL:
 						if (!rightNode->data.symbol.type) {
 							return;
 						}
 						rightType = rightNode->data.symbol.type->returnType;
-					break;
+						break;
 					default:
 						typeError(t, "Invalid right-side expression");
-					break;
+						break;
 				}
-				if (!leftType || !rightType)
-					break;
+				if (!leftType || !rightType) break;
 				if (rightType->baseType == TYPE_VOID) {
 					typeError(t, "invalid use of void expression");
 					break;
@@ -333,8 +348,9 @@ static void checkNode(ASTNode* t) {
 		case NODE_RETURN:
 			if (currentFunctionType) {
 				if (!t->children[0] && currentFunctionType->baseType != TYPE_VOID) {
-					char* err[100];
-					sprintf(err, "Function of type %s missing return value", currentFunctionType->baseType == TYPE_INT ? "int" : "void");
+					char err[100];
+					sprintf(err, "Function of type %s missing return value",
+					        currentFunctionType->baseType == TYPE_INT ? "int" : "void");
 					typeError(t, err);
 					break;
 				}
@@ -342,7 +358,7 @@ static void checkNode(ASTNode* t) {
 					typeError(t, "Return statement with return value in void function");
 				}
 			}
-		break;
+			break;
 
 		default:
 			break;

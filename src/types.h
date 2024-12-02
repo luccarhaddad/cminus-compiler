@@ -21,7 +21,7 @@ typedef struct TypeInfo {
 TypeInfo* createType(Type baseType);
 TypeInfo* createArrayType(Type baseType, int size);
 TypeInfo* createFunctionType(TypeInfo* returnType);
-bool areTypesCompatible(const TypeInfo* t1, const TypeInfo* t2);
+bool      areTypesCompatible(const TypeInfo* t1, const TypeInfo* t2);
 void      addParameter(TypeInfo* functionType, TypeInfo* paramType);
 void      destroyType(TypeInfo* type);
 

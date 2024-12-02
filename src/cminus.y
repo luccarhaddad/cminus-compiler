@@ -18,6 +18,7 @@ ASTNode* parse(void);
 
 static char* savedName; /* for use in assignments */
 static int savedLineNo;  /* ditto */
+static int scopeId = 0;
 static ASTNode* savedTree; /* stores syntax tree for later return */
 static int yylex(void);
 int yyerror(char *);
@@ -112,7 +113,7 @@ tipo_especificador:
     ;
 
 fun_declaracao:
-    tipo_especificador ID { savedLineNo = lineno; } LPAREN params RPAREN composto_decl
+    tipo_especificador ID { savedLineNo = lineno; savedName = $2; } LPAREN params RPAREN composto_decl
         {
             $$ = createNode(NODE_FUNCTION);
             $$->data.symbol.name = $2;
@@ -165,14 +166,23 @@ param:
 composto_decl:
     LBRACE local_declaracoes statement_lista RBRACE
         {
+            $$ = createNode(NODE_BLOCK);
+
+            char* scopeName = (char*)malloc(16);
+            sprintf(scopeName, "%s", savedName);
+            // sprintf(scopeName, "%s_%d", savedName, scopeId++);
+
+            savedName = copyString(scopeName);
+            $$->data.symbol.name = savedName;
+
             ASTNode* t = $2;
             if (t != NULL) {
                 while(t->next != NULL)
                     t = t->next;
                 t->next = $3;
-                $$ = $2 ? $2 : $3; // Por que isso?
+                $$->children[0] = $2 ? $2 : $3;
             } else {
-                $$ = $3;
+                $$->children[0] = $3;
             }
         }
     ;

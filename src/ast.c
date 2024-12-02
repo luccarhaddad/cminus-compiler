@@ -9,21 +9,21 @@
 #include <stdlib.h>
 
 ASTNode* createNode(const int kind) {
-	ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
+	ASTNode* node = (ASTNode*) malloc(sizeof(ASTNode));
 
 	if (node == NULL) {
 		fprintf(stderr, "Failed to allocate memory for ASTNode\n");
 		return NULL;
 	}
 
-	node->kind = kind;
+	node->kind        = kind;
 	node->children[0] = NULL;
 	node->children[1] = NULL;
 	node->children[2] = NULL;
-	node->next = NULL;
-	node->resultType = NULL;
-	node->symbol = NULL;
-	node->lineNo = lineno;
+	node->next        = NULL;
+	node->resultType  = NULL;
+	node->symbol      = NULL;
+	node->lineNo      = lineno;
 
 	switch (kind) {
 		case NODE_VARIABLE:
@@ -34,10 +34,14 @@ ASTNode* createNode(const int kind) {
 			node->data.symbol.type = NULL;
 			break;
 		case NODE_OPERATOR:
-			node->data.operator = 0;
+			node->data.operator= 0;
 			break;
 		case NODE_CONSTANT:
 			node->data.constValue = 0;
+			break;
+		case NODE_BLOCK:
+			node->data.symbol.name = "block";
+			node->data.symbol.type = NULL;
 			break;
 		default:
 			break;
@@ -55,19 +59,15 @@ void destroyNode(ASTNode* node) {
 		}
 	}
 
-	if (node->next)
-		destroyNode(node->next);
+	if (node->next) destroyNode(node->next);
 
-	if ((node->kind == NODE_VARIABLE ||
-		 node->kind == NODE_FUNCTION ||
-		 node->kind == NODE_CALL ||
-		 node->kind == NODE_IDENTIFIER) &&
-		node->data.symbol.name) {
-		free((char*)node->data.symbol.name);
-		}
+	if ((node->kind == NODE_VARIABLE || node->kind == NODE_FUNCTION || node->kind == NODE_CALL ||
+	     node->kind == NODE_IDENTIFIER) &&
+	    node->data.symbol.name) {
+		free((char*) node->data.symbol.name);
+	}
 
-	if (node->data.symbol.type)
-		destroyType(node->data.symbol.type);
+	if (node->data.symbol.type) destroyType(node->data.symbol.type);
 
 	free(node);
 }
@@ -88,8 +88,7 @@ void addSibling(ASTNode* node, ASTNode* sibling) {
 	if (!node || !sibling) return;
 
 	ASTNode* current = node;
-	while (current->next != NULL)
-		current = current->next;
+	while (current->next != NULL) current = current->next;
 
 	current->next = sibling;
 }

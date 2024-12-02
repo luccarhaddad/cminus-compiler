@@ -18,8 +18,8 @@
 #if NO_PARSE
 #include "scan.h"
 #else
-#include "parse.h"
 #include "ast.h"
+#include "parse.h"
 #if !NO_ANALYZE
 #include "analyze.h"
 #if !NO_CODE

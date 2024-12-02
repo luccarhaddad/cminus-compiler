@@ -10,18 +10,19 @@
 
 typedef struct ASTNode {
 	enum {
-		NODE_PROGRAM = 1,
-		NODE_FUNCTION = 2,
-		NODE_VARIABLE = 3,
-		NODE_IF = 4,
-		NODE_WHILE = 5,
-		NODE_RETURN = 6,
-		NODE_ASSIGN = 7,
-		NODE_CALL = 8,
-		NODE_OPERATOR = 9,
-		NODE_CONSTANT = 10,
+		NODE_PROGRAM    = 1,
+		NODE_FUNCTION   = 2,
+		NODE_VARIABLE   = 3,
+		NODE_IF         = 4,
+		NODE_WHILE      = 5,
+		NODE_RETURN     = 6,
+		NODE_ASSIGN     = 7,
+		NODE_CALL       = 8,
+		NODE_OPERATOR   = 9,
+		NODE_CONSTANT   = 10,
 		NODE_IDENTIFIER = 11,
-		NODE_PARAM = 12
+		NODE_PARAM      = 12,
+		NODE_BLOCK      = 13
 	} kind;
 
 	union {
@@ -32,16 +33,16 @@ typedef struct ASTNode {
 
 		struct {
 			enum {
-				OP_PLUS = 267,
+				OP_PLUS  = 267,
 				OP_MINUS = 268,
 				OP_TIMES = 269,
-				OP_OVER = 270,
-				OP_LT = 271,
-				OP_GT = 272,
-				OP_LEQ = 273,
-				OP_GEQ = 274,
-				OP_EQ = 275,
-				OP_NEQ = 276
+				OP_OVER  = 270,
+				OP_LT    = 271,
+				OP_GT    = 272,
+				OP_LEQ   = 273,
+				OP_GEQ   = 274,
+				OP_EQ    = 275,
+				OP_NEQ   = 276
 			} operator;
 
 			int constValue;

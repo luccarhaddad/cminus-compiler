@@ -27,8 +27,7 @@ Symbol* createSymbol(const char* name, const SymbolKind kind, TypeInfo* type) {
 	symbol->offset = 0;
 	symbol->next   = NULL;
 
-	if (symbol->kind == SYMBOL_FUNCTION)
-		symbol->type->returnType = createType(type->baseType);
+	if (symbol->kind == SYMBOL_FUNCTION) symbol->type->returnType = createType(type->baseType);
 
 	symbol->sourceInfo.definedAt  = 0;
 	symbol->sourceInfo.references = (int*) malloc(REF_CAPACITY * sizeof(int));
@@ -57,8 +56,8 @@ void addSymbol(Scope* scope, Symbol* symbol) {
 Symbol* findSymbol(Scope* scope, const char* name) {
 	if (!scope || !name) return NULL;
 
-	Symbol* current = NULL;
-	const unsigned int h = hash(name);
+	Symbol*            current = NULL;
+	const unsigned int h       = hash(name);
 	while (scope) {
 		if (scope->symbols) {
 			current = scope->symbols[h];
@@ -77,8 +76,8 @@ Symbol* findSymbol(Scope* scope, const char* name) {
 Symbol* findSymbolInScope(Scope* scope, const char* name) {
 	if (!scope || !name) return NULL;
 
-	Symbol* current = NULL;
-	const unsigned int h = hash(name);
+	Symbol*            current = NULL;
+	const unsigned int h       = hash(name);
 	if (scope->symbols) {
 		current = scope->symbols[h];
 		while (current) {
@@ -92,7 +91,6 @@ Symbol* findSymbolInScope(Scope* scope, const char* name) {
 }
 
 static bool findReference(Symbol* symbol, const int lineNo) {
-	if (!symbol) return false;
 
 	for (int i = 0; i < symbol->sourceInfo.refCount; i++) {
 		if (symbol->sourceInfo.references[i] == lineNo) {
@@ -199,7 +197,8 @@ static void printSymbol(Symbol* symbol, const char* scopeName) {
 	pc("%-14s ", symbol->name);
 	pc("%-9s ", strcmp(scopeName, "global") == 0 ? "" : scopeName);
 	pc("%-8s ", symbolKindToStr(symbol));
-	pc("%-9s ", getTypeName(symbol->kind != SYMBOL_FUNCTION ? symbol->type : symbol->type->returnType));
+	pc("%-9s ",
+	   getTypeName(symbol->kind != SYMBOL_FUNCTION ? symbol->type : symbol->type->returnType));
 	pc(" ");
 	for (int i = 0; i < symbol->sourceInfo.refCount; i++)
 		pc("%2d ", symbol->sourceInfo.references[i]);

@@ -2,9 +2,9 @@
 #include "globals.h"
 
 #include <log.h>
+#include <parser.h>
 #include <stdlib.h>
 #include <string.h>
-#include <parser.h>
 
 /* Procedure printToken prints a token
  * and its lexeme to the listing file
@@ -122,7 +122,7 @@ ASTNode* newExpNode(const int kind) {
 char* copyString(const char* s) {
 	if (s == NULL) return NULL;
 	const unsigned int n = strlen(s) + 1;
-	char*     t = malloc(n);
+	char*              t = malloc(n);
 	if (t == NULL)
 		pce("Out of memory error at line %d\n", lineno);
 	else
@@ -141,8 +141,7 @@ static int indentno = 0;
 
 /* printSpaces indents by printing spaces */
 static void printSpaces(void) {
-	for (int i = 0; i < indentno; i++)
-		pc(" ");
+	for (int i = 0; i < indentno; i++) pc(" ");
 }
 
 /* Procedure printLine prints a full line
@@ -177,11 +176,16 @@ void printLine() {
 
 const char* ExpTypeToString(const TypeInfo* type) {
 	switch (type->baseType) {
-		case TYPE_VOID:    return "void";
-		case TYPE_INT:     return "int";
-		case TYPE_BOOLEAN: return "boolean";
-		case TYPE_ARRAY:   return "array";
-		default:           return "unknown";
+		case TYPE_VOID:
+			return "void";
+		case TYPE_INT:
+			return "int";
+		case TYPE_BOOLEAN:
+			return "boolean";
+		case TYPE_ARRAY:
+			return "array";
+		default:
+			return "unknown";
 	}
 }
 
@@ -196,17 +200,17 @@ void printTree(const ASTNode* tree) {
 			switch (tree->kind) {
 				case NODE_PROGRAM:
 					pc("Program\n");
-				break;
+					break;
 				case NODE_FUNCTION:
 					pc("Declare function (return type \"%s\"): %s\n",
 					   ExpTypeToString(tree->data.symbol.type->returnType), tree->data.symbol.name);
-				break;
+					break;
 				case NODE_IF:
 					pc("Conditional selection\n");
-				break;
+					break;
 				case NODE_WHILE:
 					pc("Iteration (loop)\n");
-				break;
+					break;
 				case NODE_ASSIGN: {
 					ASTNode* target = tree->children[0];
 
@@ -219,14 +223,14 @@ void printTree(const ASTNode* tree) {
 						if (target->children[0] != NULL) {
 							pc("Assign to array: %s\n", target->data.symbol.name);
 							INDENT;
-							printTree(target->children[0]);  // Print array index
+							printTree(target->children[0]); // Print array index
 							UNINDENT;
 						} else {
 							pc("Assign to var: %s\n", target->data.symbol.name);
 						}
 						// Only print the value being assigned, not the target identifier again
 						INDENT;
-						printTree(tree->children[1]);  // Print the value being assigned
+						printTree(tree->children[1]); // Print the value being assigned
 						UNINDENT;
 						tree = tree->next;
 						continue;
@@ -234,34 +238,36 @@ void printTree(const ASTNode* tree) {
 					break;
 				}
 				case NODE_PARAM:
-					pc("Function param (%s %s): %s\n",
-						ExpTypeToString(tree->data.symbol.type),
-						(tree->data.symbol.type->arraySize >= 0 ? "array" : "var"),
-						tree->data.symbol.name);
+					pc("Function param (%s %s): %s\n", ExpTypeToString(tree->data.symbol.type),
+					   (tree->data.symbol.type->arraySize >= 0 ? "array" : "var"),
+					   tree->data.symbol.name);
 					break;
 				case NODE_VARIABLE:
 					pc("Declare %s %s: %s\n", ExpTypeToString(tree->data.symbol.type),
-					   (tree->data.symbol.type->arraySize >= 0 ? "array" : "var"), tree->data.symbol.name);
+					   (tree->data.symbol.type->arraySize >= 0 ? "array" : "var"),
+					   tree->data.symbol.name);
 					break;
 				case NODE_OPERATOR:
 					pc("Op: ");
 					printToken(tree->data.operator, "\0");
-				break;
+					break;
 				case NODE_CONSTANT:
 					pc("Const: %d\n", tree->data.constValue);
-				break;
+					break;
 				case NODE_IDENTIFIER:
 					pc("Id: %s\n", tree->data.symbol.name);
-				break;
+					break;
 				case NODE_CALL:
 					pc("Function call: %s\n", tree->data.symbol.name);
-				break;
+					break;
 				case NODE_RETURN:
 					pc("Return\n");
-				break;
+					break;
+				case NODE_BLOCK:
+					break;
 				default:
 					pce("Unknown ExpNode kind\n");
-				break;
+					break;
 			}
 
 			if (tree->kind != NODE_ASSIGN) {
