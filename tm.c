@@ -335,7 +335,7 @@ STEPRESULT stepTM(void) {
 				printf("Enter value for IN instruction: ");
 				fflush(stdin);
 				fflush(stdout);
-				gets(in_Line);
+				fgets(in_Line, LINESIZE, stdin);
 				lineLen = strlen(in_Line);
 				inCol   = 0;
 				ok      = getNum();
@@ -417,7 +417,7 @@ int doCommand(void) {
 		printf("Enter command: ");
 		fflush(stdin);
 		fflush(stdout);
-		gets(in_Line);
+		fgets(in_Line, LINESIZE, stdin);
 		lineLen = strlen(in_Line);
 		inCol   = 0;
 	} while (!getWord());
@@ -574,12 +574,23 @@ int doCommand(void) {
 /********************************************/
 
 int main(int argc, char* argv[]) {
+	char pgmName[1024]; // Increased buffer size
+
 	if (argc != 2) {
 		printf("usage: %s <filename>\n", argv[0]);
 		exit(1);
 	}
-	strcpy(pgmName, argv[1]);
-	if (strchr(pgmName, '.') == NULL) strcat(pgmName, ".tm");
+	strncpy(pgmName, argv[1], sizeof(pgmName) - 1);
+	pgmName[sizeof(pgmName) - 1] = '\0'; // Ensure null termination
+
+	if (strchr(pgmName, '.') == NULL) {
+		if (strlen(pgmName) + 3 < sizeof(pgmName)) {
+			strcat(pgmName, ".tm");
+		} else {
+			fprintf(stderr, "Error: File name too long.\n");
+			exit(1);
+		}
+	}
 	pgm = fopen(pgmName, "r");
 	if (pgm == NULL) {
 		printf("file '%s' not found\n", pgmName);
