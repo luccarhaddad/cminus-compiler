@@ -11,10 +11,10 @@
 #define NO_CODE FALSE
 
 #include "util.h"
-
 #include <log.h>
 #include <stdlib.h>
 #include <string.h>
+
 #if NO_PARSE
 #include "scan.h"
 #else
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 
 	//// opening sources ////
 	char pgm[120]; /* source code file name */
-	if ((argc < 2) || (argc > 3)) {
+	if (argc < 2 || argc > 3) {
 		fprintf(stderr, "usage: %s <filename> [<detailpath>]\n", argv[0]);
 		exit(1);
 	}
@@ -99,9 +99,8 @@ int main(int argc, char* argv[]) {
 #if !NO_CODE
 	doneTABstartGEN();
 	if (!Error) {
-		char* codefile;
 		int   fnlen = strcspn(pgm, ".");
-		codefile    = (char*) calloc(fnlen + 4, sizeof(char));
+		char* codefile = calloc(fnlen + 4, sizeof(char));
 		strncpy(codefile, pgm, fnlen);
 		strcat(codefile, ".tm");
 		code = fopen(codefile, "w");
@@ -109,7 +108,7 @@ int main(int argc, char* argv[]) {
 			printf("Unable to open %s\n", codefile);
 			exit(1);
 		}
-		codeGen(syntaxTree, codefile);
+		codeGen(syntaxTree);
 		fclose(code);
 	}
 #endif

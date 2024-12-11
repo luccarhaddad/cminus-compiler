@@ -170,7 +170,6 @@ composto_decl:
 
             char* scopeName = (char*)malloc(16);
             sprintf(scopeName, "%s", savedName);
-            // sprintf(scopeName, "%s_%d", savedName, scopeId++);
 
             savedName = copyString(scopeName);
             $$->data.symbol.name = savedName;
