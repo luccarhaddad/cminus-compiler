@@ -31,7 +31,7 @@ typedef struct Scope {
 } Scope;
 
 /* Symbol table functions */
-Symbol* createSymbol(const char* name, SymbolKind kind, TypeInfo* type);
+Symbol* createSymbol(const char* name, SymbolKind kind, TypeInfo* type, int offset);
 void    addSymbol(Scope* scope, Symbol* symbol);
 Symbol* findSymbol(Scope* scope, const char* name);
 Symbol* findSymbolInScope(Scope* scope, const char* name);

@@ -17,14 +17,14 @@ static unsigned int hash(const char* name) {
 	return h % HASH_SIZE;
 }
 
-Symbol* createSymbol(const char* name, const SymbolKind kind, TypeInfo* type) {
+Symbol* createSymbol(const char* name, const SymbolKind kind, TypeInfo* type, int offset) {
 	Symbol* symbol = malloc(sizeof(Symbol));
 	if (!symbol) return NULL;
 
 	symbol->name   = strdup(name);
 	symbol->kind   = kind;
 	symbol->type   = type;
-	symbol->offset = 0;
+	symbol->offset = offset;
 	symbol->next   = NULL;
 
 	if (symbol->kind == SYMBOL_FUNCTION) symbol->type->returnType = createType(type->baseType);
@@ -124,7 +124,7 @@ void destroySymbol(Symbol* symbol) {
 }
 
 Scope* createScope(const char* name, Scope* parent) {
-	Scope* scope = (Scope*) malloc(sizeof(Scope));
+	Scope* scope = malloc(sizeof(Scope));
 	if (!scope) return NULL;
 
 	scope->name        = strdup(name);

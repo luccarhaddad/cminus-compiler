@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
 			printf("Unable to open %s\n", codefile);
 			exit(1);
 		}
-		codeGen(syntaxTree, codefile);
+		codeGen(syntaxTree);
 		fclose(code);
 	}
 #endif

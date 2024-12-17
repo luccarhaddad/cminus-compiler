@@ -6,7 +6,6 @@
 #ifndef AST_H
 #define AST_H
 #include <symtab.h>
-#include <types.h>
 
 typedef struct ASTNode {
 	enum {

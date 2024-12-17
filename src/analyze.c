@@ -1,19 +1,21 @@
 #include "analyze.h"
 #include "globals.h"
-#include "symtab.h"
-#include "util.h"
 
 #include <log.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
-static Scope*    currentScope        = NULL;
-static Scope*    globalScope         = NULL;
 static TypeInfo* currentFunctionType = NULL;
 static bool      declaredMain        = FALSE;
 static bool      functionDeclared    = FALSE;
 
-static void enterScope(const char* name) {
+Scope* globalScope  = NULL;
+Scope* currentScope = NULL;
+
+static int tmpOffset    = MAX_MEMORY - 2;
+static int globalOffset = 0;
+
+void enterScope(const char* name) {
 	if (currentScope) {
 		for (int i = 0; i < currentScope->childCount; i++) {
 			if (strcmp(currentScope->children[i]->name, name) == 0) {
@@ -40,11 +42,12 @@ static void enterScope(const char* name) {
 	if (!globalScope) globalScope = currentScope;
 }
 
-static void leaveScope(ASTNode* t) {
-	if (currentScope && t->kind == NODE_FUNCTION) currentScope = currentScope->parent;
-	if (currentScope && currentScope->parent &&
-	    strcmp(currentScope->name, currentScope->parent->name) == 0 && t->kind == NODE_BLOCK)
-		currentScope = currentScope->parent;
+void leaveScope(ASTNode* t) {
+    if (currentScope && t->kind == NODE_FUNCTION) {
+        currentScope = currentScope->parent;
+    } else if (currentScope && currentScope->parent && t->kind == NODE_BLOCK) {
+        currentScope = currentScope->parent;
+    }
 }
 
 static void typeError(const ASTNode* t, const char* message) {
@@ -146,13 +149,13 @@ static void insertNode(ASTNode* t) {
 
 	switch (t->kind) {
 		case NODE_BLOCK:
-			if (!functionDeclared) {
+			if (!functionDeclared)
 				enterScope(t->data.symbol.name);
-			} else {
+			else
 				functionDeclared = FALSE;
-			}
 			break;
 
+		// Offsets updated
 		case NODE_FUNCTION:
 			if (findSymbol(currentScope, t->data.symbol.name)) {
 				typeError(t, "Function already declared in this scope");
@@ -161,8 +164,9 @@ static void insertNode(ASTNode* t) {
 			if (strcmp(t->data.symbol.name, "main") == 0) {
 				declaredMain = TRUE;
 			}
-			symbol =
-			    createSymbol(t->data.symbol.name, SYMBOL_FUNCTION, t->data.symbol.type->returnType);
+			tmpOffset                    = MAX_MEMORY - 2;
+			symbol                       = createSymbol(t->data.symbol.name, SYMBOL_FUNCTION,
+			                                            t->data.symbol.type->returnType, MAX_MEMORY - 1);
 			symbol->sourceInfo.definedAt = t->lineNo;
 			addSymbol(currentScope, symbol);
 			addReference(symbol, t->lineNo);
@@ -171,6 +175,7 @@ static void insertNode(ASTNode* t) {
 			functionDeclared = TRUE;
 			break;
 
+		// Offsets updated
 		case NODE_VARIABLE:
 			if ((symbol = findSymbolInScope(currentScope, t->data.symbol.name))) {
 				if (symbol->kind == SYMBOL_VARIABLE) {
@@ -192,21 +197,43 @@ static void insertNode(ASTNode* t) {
 				typeError(t, "variable declared void");
 				return;
 			}
-			symbol =
-			    createSymbol(t->data.symbol.name,
-			                 t->data.symbol.type->arraySize >= 0 ? SYMBOL_ARRAY : SYMBOL_VARIABLE,
-			                 t->data.symbol.type);
+			if (currentScope == globalScope) {
+				if (t->data.symbol.type->arraySize >= 0) {
+					globalOffset += t->data.symbol.type->arraySize;
+					symbol = createSymbol(t->data.symbol.name, SYMBOL_ARRAY, t->data.symbol.type,
+					                      globalOffset++);
+				} else {
+					symbol = createSymbol(t->data.symbol.name, SYMBOL_VARIABLE, t->data.symbol.type,
+					                      globalOffset++);
+				}
+			} else {
+				if (t->data.symbol.type->arraySize >= 0) {
+					symbol = createSymbol(t->data.symbol.name, SYMBOL_ARRAY, t->data.symbol.type,
+					                      tmpOffset--);
+					tmpOffset -= t->data.symbol.type->arraySize;
+				} else {
+					symbol = createSymbol(t->data.symbol.name, SYMBOL_VARIABLE, t->data.symbol.type,
+					                      tmpOffset--);
+				}
+			}
 			symbol->sourceInfo.definedAt = t->lineNo;
 			addSymbol(currentScope, symbol);
 			addReference(symbol, t->lineNo);
 			break;
 
+		// Offsets updated
 		case NODE_PARAM:
 			if (!currentScope->parent) {
 				typeError(t, "Parameters should belong to a function scope");
 				return;
 			}
-			symbol = createSymbol(t->data.symbol.name, SYMBOL_PARAMETER, t->data.symbol.type);
+			if (currentScope == globalScope) {
+				symbol = createSymbol(t->data.symbol.name, SYMBOL_PARAMETER, t->data.symbol.type,
+				                      globalOffset++);
+			} else {
+				symbol = createSymbol(t->data.symbol.name, SYMBOL_PARAMETER, t->data.symbol.type,
+				                      tmpOffset--);
+			}
 			symbol->sourceInfo.definedAt = t->lineNo;
 			addSymbol(currentScope, symbol);
 			addReference(symbol, t->lineNo);
@@ -233,8 +260,8 @@ static void insertNode(ASTNode* t) {
 void buildSymTab(ASTNode* syntaxTree) {
 	globalScope  = createScope("global", NULL);
 	currentScope = globalScope;
-	addSymbol(globalScope, createSymbol("input", SYMBOL_FUNCTION, createType(TYPE_INT)));
-	addSymbol(globalScope, createSymbol("output", SYMBOL_FUNCTION, createType(TYPE_VOID)));
+	addSymbol(globalScope, createSymbol("input", SYMBOL_FUNCTION, createType(TYPE_INT), 0));
+	addSymbol(globalScope, createSymbol("output", SYMBOL_FUNCTION, createType(TYPE_VOID), 0));
 
 	traverse(syntaxTree, insertNode, leaveScope);
 
