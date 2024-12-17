@@ -1,11 +1,13 @@
 #ifndef _ANALYZE_H_
 #define _ANALYZE_H_
 
+#define MAX_MEMORY 1023
+
 #include "ast.h"
 #include <string.h>
 
-Scope* globalScope;
-Scope* currentScope;
+extern Scope* globalScope;
+extern Scope* currentScope;
 
 /* Function buildSymtab constructs the symbol
  * table by preorder traversal of the syntax tree
